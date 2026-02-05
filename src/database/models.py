@@ -205,8 +205,17 @@ class ChatSession(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Enhanced chat fields
+    discussed_topics = db.Column(db.JSON, default=list)
+    dismissed_suggestions = db.Column(db.JSON, default=list)
+    conversation_summary = db.Column(db.Text)
+    summary_updated_at = db.Column(db.DateTime)
+    topic_tags = db.Column(db.JSON, default=list)
+    key_insights = db.Column(db.JSON, default=list)
+
     messages = db.relationship('ChatMessage', backref='session', lazy=True,
                                order_by='ChatMessage.created_at')
+    uploaded_files = db.relationship('UploadedFile', backref='session', lazy=True)
 
     def to_dict(self):
         return {
@@ -214,6 +223,10 @@ class ChatSession(db.Model):
             'organization_id': self.organization_id,
             'mode': self.mode,
             'title': self.title,
+            'discussed_topics': self.discussed_topics or [],
+            'topic_tags': self.topic_tags or [],
+            'has_summary': self.conversation_summary is not None,
+            'file_count': len(self.uploaded_files) if self.uploaded_files else 0,
             'message_count': len(self.messages) if self.messages else 0,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
@@ -233,5 +246,39 @@ class ChatMessage(db.Model):
             'id': self.id,
             'role': self.role,
             'content': self.content,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class UploadedFile(db.Model):
+    """Uploaded files for chat analysis."""
+    __tablename__ = 'uploaded_files'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    session_id = db.Column(db.String(36), db.ForeignKey('chat_sessions.id'), nullable=False)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+
+    filename = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=False)
+    file_size = db.Column(db.Integer)
+
+    analysis_result = db.Column(db.JSON)
+    context_summary = db.Column(db.Text)
+    row_count = db.Column(db.Integer)
+    column_count = db.Column(db.Integer)
+    detected_metrics = db.Column(db.JSON)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'filename': self.filename,
+            'file_type': self.file_type,
+            'file_size': self.file_size,
+            'row_count': self.row_count,
+            'column_count': self.column_count,
+            'detected_metrics': self.detected_metrics,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

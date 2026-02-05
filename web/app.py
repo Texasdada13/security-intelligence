@@ -9,8 +9,11 @@ from config.settings import get_config
 from src.database.models import db
 from src.database.repository import OrganizationRepository, VulnerabilityRepository, IncidentRepository, ComplianceRepository, RiskRepository, ChatRepository
 from src.ai_core.chat_engine import ChatEngine, ConversationMode
+from src.ai_core.file_analyzer import create_file_analyzer
 from src.patterns.security_scoring import create_security_posture_engine
+from src.database.models import UploadedFile
 from src.patterns.compliance_engine import create_compliance_engine, ComplianceFramework
+from src.demo.data_generator import create_security_demo_generator
 
 
 def create_app():
@@ -29,6 +32,7 @@ def create_app():
         chat_engine = None
 
     security_engine = create_security_posture_engine()
+    file_analyzer = create_file_analyzer()
 
     # ==================== PAGE ROUTES ====================
 
@@ -209,6 +213,218 @@ def create_app():
             except ValueError:
                 pass
         return jsonify({'prompts': []})
+
+    @app.route('/api/chat/sessions/<session_id>/suggestions', methods=['GET'])
+    def api_chat_suggestions(session_id):
+        """Get context-aware suggestions for a chat session."""
+        if not chat_engine:
+            return jsonify({'suggestions': [], 'error': 'Chat engine not available'}), 503
+
+        session = ChatRepository.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        messages = ChatRepository.get_messages(session_id)
+        history = [{'role': m.role, 'content': m.content} for m in messages]
+        context = session.context or {}
+        discussed_topics = session.discussed_topics or []
+        dismissed_prompts = session.dismissed_suggestions or []
+
+        suggestions = chat_engine.get_dynamic_suggestions(
+            mode=session.mode or 'general',
+            context=context,
+            conversation_history=history,
+            discussed_topics=discussed_topics,
+            dismissed_prompts=dismissed_prompts,
+            max_suggestions=4
+        )
+
+        return jsonify({
+            'suggestions': suggestions,
+            'context_summary': {
+                'mode': session.mode,
+                'discussed_topics': discussed_topics,
+                'message_count': len(messages)
+            }
+        })
+
+    @app.route('/api/chat/sessions/<session_id>/dismiss', methods=['POST'])
+    def api_dismiss_suggestion(session_id):
+        """Dismiss a suggestion so it won't appear again."""
+        session = ChatRepository.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        data = request.json
+        prompt_text = data.get('prompt')
+
+        if prompt_text:
+            dismissed = session.dismissed_suggestions or []
+            if prompt_text not in dismissed:
+                dismissed.append(prompt_text)
+                session.dismissed_suggestions = dismissed
+                db.session.commit()
+
+        return jsonify({'success': True})
+
+    @app.route('/api/chat/sessions/<session_id>/topics', methods=['POST'])
+    def api_track_topics(session_id):
+        """Track discussed topics from a message."""
+        if not chat_engine:
+            return jsonify({'error': 'Chat engine not available'}), 503
+
+        session = ChatRepository.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        data = request.json
+        message = data.get('message', '')
+        new_topics = chat_engine.extract_topics(message)
+
+        discussed = session.discussed_topics or []
+        for topic in new_topics:
+            if topic not in discussed:
+                discussed.append(topic)
+
+        session.discussed_topics = discussed
+        db.session.commit()
+
+        return jsonify({
+            'new_topics': new_topics,
+            'all_topics': discussed
+        })
+
+    # ==================== FILE UPLOAD API ====================
+
+    @app.route('/api/chat/sessions/<session_id>/upload', methods=['POST'])
+    def api_upload_file(session_id):
+        """Upload a file for analysis."""
+        session = ChatRepository.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        content = file.read()
+        filename = file.filename
+
+        try:
+            result = file_analyzer.analyze_file(content, filename)
+        except Exception as e:
+            return jsonify({'error': f'Failed to analyze file: {str(e)}'}), 400
+
+        uploaded_file = UploadedFile(
+            session_id=session_id,
+            filename=filename,
+            file_type=result.file_type,
+            file_size=len(content),
+            analysis_result=result.to_dict(),
+            context_summary=result.data_summary,
+            row_count=result.row_count,
+            column_count=result.column_count,
+            detected_metrics=result.detected_metrics
+        )
+        db.session.add(uploaded_file)
+        db.session.commit()
+
+        return jsonify({
+            'file_id': uploaded_file.id,
+            'filename': filename,
+            'analysis': result.to_dict()
+        }), 201
+
+    @app.route('/api/chat/sessions/<session_id>/files', methods=['GET'])
+    def api_list_files(session_id):
+        """List files uploaded to a session."""
+        session = ChatRepository.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        files = UploadedFile.query.filter_by(session_id=session_id).all()
+        return jsonify({'files': [f.to_dict() for f in files]})
+
+    @app.route('/api/chat/sessions/<session_id>/files/<file_id>', methods=['GET', 'DELETE'])
+    def api_file_detail(session_id, file_id):
+        """Get or delete a specific file."""
+        uploaded_file = UploadedFile.query.filter_by(id=file_id, session_id=session_id).first()
+        if not uploaded_file:
+            return jsonify({'error': 'File not found'}), 404
+
+        if request.method == 'DELETE':
+            db.session.delete(uploaded_file)
+            db.session.commit()
+            return jsonify({'success': True})
+
+        return jsonify(uploaded_file.to_dict())
+
+    # ==================== DEMO DATA API ====================
+
+    @app.route('/api/demo/generate', methods=['POST'])
+    def api_generate_demo():
+        """Generate demo security data."""
+        data = request.json or {}
+        org_name = data.get('organization_name')
+        seed = data.get('seed')
+
+        generator = create_security_demo_generator(seed)
+        demo_data = generator.generate_full_demo(org_name)
+
+        return jsonify(demo_data)
+
+    @app.route('/api/demo/load', methods=['POST'])
+    def api_load_demo():
+        """Generate demo data and load it into the database."""
+        data = request.json or {}
+        org_name = data.get('organization_name', 'Demo Security Corp')
+        seed = data.get('seed')
+
+        generator = create_security_demo_generator(seed)
+        demo_data = generator.generate_full_demo(org_name)
+
+        # Create organization
+        org = OrganizationRepository.create(
+            name=demo_data['organization']['name'],
+            industry=demo_data['organization']['industry'],
+            size=str(demo_data['organization']['employee_count']),
+            compliance_frameworks=demo_data['organization']['compliance_frameworks']
+        )
+
+        # Create vulnerabilities
+        for vuln_data in demo_data['vulnerabilities']:
+            VulnerabilityRepository.create(
+                organization_id=org.id,
+                cve_id=vuln_data['cve_id'],
+                title=vuln_data['title'],
+                severity=vuln_data['severity'],
+                cvss_score=vuln_data['cvss_score'],
+                status=vuln_data['status'],
+                affected_asset=vuln_data['affected_asset']
+            )
+
+        # Create incidents
+        for incident_data in demo_data['incidents']:
+            IncidentRepository.create(
+                organization_id=org.id,
+                title=incident_data['title'],
+                incident_type=incident_data['incident_type'],
+                severity=incident_data['severity'],
+                status=incident_data['status']
+            )
+
+        return jsonify({
+            'success': True,
+            'organization_id': org.id,
+            'organization_name': org.name,
+            'vulnerabilities_created': len(demo_data['vulnerabilities']),
+            'incidents_created': len(demo_data['incidents']),
+            'compliance_frameworks': demo_data['organization']['compliance_frameworks'],
+            'metrics_summary': demo_data['metrics_summary']
+        }), 201
 
     @app.route('/health')
     def health():

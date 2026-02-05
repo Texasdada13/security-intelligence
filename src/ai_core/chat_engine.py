@@ -2,6 +2,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, Generator, Any
 from .claude_client import ClaudeClient
+from .suggestion_engine import SecuritySuggestionEngine, SuggestedPrompt
 
 
 class ConversationMode(Enum):
@@ -174,6 +175,7 @@ class ChatEngine:
 
     def __init__(self, claude_client: ClaudeClient = None):
         self.client = claude_client or ClaudeClient()
+        self.suggestion_engine = SecuritySuggestionEngine()
 
     def get_modes(self) -> Dict[str, str]:
         """Get available conversation modes with descriptions."""
@@ -182,6 +184,30 @@ class ChatEngine:
     def get_suggested_prompts(self, mode: ConversationMode) -> List[str]:
         """Get suggested prompts for a conversation mode."""
         return SUGGESTED_PROMPTS.get(mode, SUGGESTED_PROMPTS[ConversationMode.GENERAL])
+
+    def get_dynamic_suggestions(
+        self,
+        mode: str,
+        context: Dict[str, Any] = None,
+        conversation_history: List[Dict[str, Any]] = None,
+        discussed_topics: List[str] = None,
+        dismissed_prompts: List[str] = None,
+        max_suggestions: int = 4
+    ) -> List[Dict[str, Any]]:
+        """Get context-aware dynamic suggestions."""
+        suggestions = self.suggestion_engine.get_suggestions(
+            mode=mode,
+            context=context or {},
+            conversation_history=conversation_history or [],
+            discussed_topics=discussed_topics,
+            dismissed_prompts=dismissed_prompts,
+            max_suggestions=max_suggestions
+        )
+        return [s.to_dict() for s in suggestions]
+
+    def extract_topics(self, message: str) -> List[str]:
+        """Extract topic tags from a message."""
+        return self.suggestion_engine.extract_topics(message)
 
     def chat(self, message: str, mode: ConversationMode = ConversationMode.GENERAL,
              history: List[Dict[str, str]] = None, context: Dict[str, Any] = None) -> str:

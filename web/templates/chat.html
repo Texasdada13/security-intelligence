@@ -13,10 +13,24 @@
     .mode-btn { background: transparent; border: 1px solid rgba(0, 200, 83, 0.3); color: #c9d1d9; padding: 0.5rem 1rem; border-radius: 20px; margin: 0.25rem; transition: all 0.2s; }
     .mode-btn:hover, .mode-btn.active { background: var(--primary-gradient); border-color: transparent; color: white; }
     .suggested-prompts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
-    .prompt-btn { background: rgba(0, 200, 83, 0.1); border: 1px solid rgba(0, 200, 83, 0.3); color: #c9d1d9; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; }
+    .prompt-btn { background: rgba(0, 200, 83, 0.1); border: 1px solid rgba(0, 200, 83, 0.3); color: #c9d1d9; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; position: relative; }
     .prompt-btn:hover { background: rgba(0, 200, 83, 0.2); color: white; }
+    .prompt-btn.urgent { border-color: #dc3545; background: rgba(220, 53, 69, 0.1); }
+    .prompt-btn.opportunity { border-color: #28a745; background: rgba(40, 167, 69, 0.1); }
+    .prompt-btn.follow-up { border-color: #17a2b8; background: rgba(23, 162, 184, 0.1); }
+    .prompt-btn .dismiss-btn { display: none; position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: #dc3545; color: white; font-size: 10px; line-height: 16px; text-align: center; cursor: pointer; }
+    .prompt-btn:hover .dismiss-btn { display: block; }
     .typing-indicator { display: none; padding: 1rem; color: #aaa; }
     .typing-indicator.show { display: block; }
+    .file-upload-area { border: 2px dashed rgba(0, 200, 83, 0.3); border-radius: 8px; padding: 1rem; text-align: center; margin-bottom: 1rem; display: none; cursor: pointer; }
+    .file-upload-area.show { display: block; }
+    .file-upload-area:hover { border-color: rgba(0, 200, 83, 0.6); background: rgba(0, 200, 83, 0.05); }
+    .file-upload-area.dragover { border-color: #00c853; background: rgba(0, 200, 83, 0.1); }
+    .uploaded-files { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .uploaded-file { background: rgba(0, 200, 83, 0.1); border: 1px solid rgba(0, 200, 83, 0.3); padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+    .uploaded-file .remove-file { cursor: pointer; color: #dc3545; }
+    .context-panel { background: var(--card-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+    .topic-tag { display: inline-block; background: rgba(23, 162, 184, 0.2); border-radius: 10px; padding: 0.15rem 0.5rem; font-size: 0.75rem; margin: 0.15rem; }
 </style>
 {% endblock %}
 {% block content %}
@@ -34,14 +48,27 @@
                     {% endfor %}
                 </div>
             </div>
+            <div class="context-panel" id="contextPanel" style="display: none;">
+                <h6 class="mb-2"><i class="bi bi-info-circle me-2"></i>Context</h6>
+                <div id="discussedTopics"></div>
+                <div id="uploadedFilesList" class="mt-2"></div>
+            </div>
         </div>
         <div class="col-lg-9">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i>AI CISO Consultant<span id="currentMode" class="badge bg-primary ms-2">General</span></h5>
+                    <button class="btn btn-outline-primary btn-sm" id="toggleUpload"><i class="bi bi-upload"></i> Upload Data</button>
                 </div>
                 <div class="card-body p-0">
                     <div class="chat-container">
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <i class="bi bi-cloud-upload" style="font-size: 2rem;"></i>
+                            <p class="mb-0 mt-2">Drop a CSV or JSON file here, or click to browse</p>
+                            <small class="text-muted">Upload vulnerability reports, incident data, or compliance assessments</small>
+                            <input type="file" id="fileInput" accept=".csv,.json,.tsv" style="display: none;">
+                        </div>
+                        <div class="uploaded-files" id="uploadedFiles"></div>
                         <div class="chat-messages" id="chatMessages">
                             <div class="message assistant">
                                 <div class="message-content">Hello! I'm your AI CISO consultant. I can help you with:
@@ -52,6 +79,8 @@
 - Vulnerability prioritization and remediation
 - Threat intelligence and detection
 - Security architecture and controls
+
+You can also upload vulnerability scans, incident logs, or compliance reports for analysis.
 
 How can I help secure your organization today?</div>
                             </div>
@@ -79,15 +108,94 @@ How can I help secure your organization today?</div>
 <script>
 let currentSessionId = null;
 let currentMode = 'general';
+let uploadedFileIds = [];
 
 async function initSession() {
-    const response = await fetch('/api/chat/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: currentMode })
-    });
+    const response = await fetch('/api/chat/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: currentMode }) });
     const data = await response.json();
     currentSessionId = data.id;
+    uploadedFileIds = [];
+    updateContextPanel();
+    loadDynamicSuggestions();
+}
+
+async function loadDynamicSuggestions() {
+    if (!currentSessionId) return;
+    try {
+        const response = await fetch(`/api/chat/sessions/${currentSessionId}/suggestions`);
+        const data = await response.json();
+        const container = document.getElementById('suggestedPrompts');
+        if (data.suggestions && data.suggestions.length > 0) {
+            container.innerHTML = data.suggestions.map(s => {
+                const categoryClass = s.category || 'general';
+                return `<button class="prompt-btn ${categoryClass}" onclick="sendMessage('${escapeHtml(s.prompt)}')" title="${escapeHtml(s.rationale || '')}">${escapeHtml(s.prompt)}<span class="dismiss-btn" onclick="dismissSuggestion(event, '${escapeHtml(s.prompt)}')">&times;</span></button>`;
+            }).join('');
+        }
+        if (data.context_summary && data.context_summary.discussed_topics) updateDiscussedTopics(data.context_summary.discussed_topics);
+    } catch (error) { console.error('Error loading suggestions:', error); }
+}
+
+async function dismissSuggestion(event, promptText) {
+    event.stopPropagation();
+    if (!currentSessionId) return;
+    await fetch(`/api/chat/sessions/${currentSessionId}/dismiss`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: promptText }) });
+    loadDynamicSuggestions();
+}
+
+function updateDiscussedTopics(topics) {
+    const container = document.getElementById('discussedTopics');
+    const panel = document.getElementById('contextPanel');
+    if (topics && topics.length > 0) {
+        panel.style.display = 'block';
+        container.innerHTML = '<small class="text-muted">Topics discussed:</small><br>' + topics.map(t => `<span class="topic-tag">${escapeHtml(t)}</span>`).join('');
+    }
+}
+
+function updateContextPanel() {
+    const panel = document.getElementById('contextPanel');
+    if (uploadedFileIds.length > 0) { panel.style.display = 'block'; loadUploadedFiles(); }
+    else { document.getElementById('uploadedFilesList').innerHTML = ''; }
+}
+
+async function loadUploadedFiles() {
+    if (!currentSessionId) return;
+    const response = await fetch(`/api/chat/sessions/${currentSessionId}/files`);
+    const data = await response.json();
+    const container = document.getElementById('uploadedFilesList');
+    if (data.files && data.files.length > 0) {
+        container.innerHTML = '<small class="text-muted">Uploaded files:</small><br>' + data.files.map(f => `<div class="uploaded-file"><i class="bi bi-file-earmark-text"></i>${escapeHtml(f.filename)}<span class="remove-file" onclick="removeFile('${f.id}')">&times;</span></div>`).join('');
+    }
+}
+
+document.getElementById('toggleUpload').addEventListener('click', () => document.getElementById('fileUploadArea').classList.toggle('show'));
+document.getElementById('fileUploadArea').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', async (e) => { if (e.target.files[0]) await uploadFile(e.target.files[0]); });
+
+const uploadArea = document.getElementById('fileUploadArea');
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', async (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); if (e.dataTransfer.files[0]) await uploadFile(e.dataTransfer.files[0]); });
+
+async function uploadFile(file) {
+    if (!currentSessionId) await initSession();
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`/api/chat/sessions/${currentSessionId}/upload`, { method: 'POST', body: formData });
+    const data = await response.json();
+    if (response.ok) {
+        uploadedFileIds.push(data.file_id);
+        document.getElementById('chatMessages').innerHTML += `<div class="message assistant"><div class="message-content"><i class="bi bi-check-circle text-success"></i> Uploaded and analyzed: <strong>${escapeHtml(file.name)}</strong><br><small class="text-muted">${data.analysis.row_count} rows, ${data.analysis.column_count} columns</small>${data.analysis.insights ? '<br><br>' + data.analysis.insights.join('<br>') : ''}</div></div>`;
+        document.getElementById('fileUploadArea').classList.remove('show');
+        updateContextPanel();
+        loadDynamicSuggestions();
+    } else { alert('Upload failed: ' + (data.error || 'Unknown error')); }
+}
+
+async function removeFile(fileId) {
+    if (!currentSessionId) return;
+    await fetch(`/api/chat/sessions/${currentSessionId}/files/${fileId}`, { method: 'DELETE' });
+    uploadedFileIds = uploadedFileIds.filter(id => id !== fileId);
+    updateContextPanel();
 }
 
 async function sendMessage(message) {
@@ -95,16 +203,13 @@ async function sendMessage(message) {
     if (!currentSessionId) await initSession();
     const chatMessages = document.getElementById('chatMessages');
     const typingIndicator = document.getElementById('typingIndicator');
+    fetch(`/api/chat/sessions/${currentSessionId}/topics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) }).catch(console.error);
     chatMessages.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div></div>`;
     chatMessages.scrollTop = chatMessages.scrollHeight;
     document.getElementById('messageInput').value = '';
     typingIndicator.classList.add('show');
     try {
-        const response = await fetch(`/api/chat/sessions/${currentSessionId}/stream`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
-        });
+        const response = await fetch(`/api/chat/sessions/${currentSessionId}/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let assistantMessage = '';
@@ -116,11 +221,10 @@ async function sendMessage(message) {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value);
-            for (const line of chunk.split('\n')) {
+            for (const line of decoder.decode(value).split('\n')) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6);
-                    if (data === '[DONE]') typingIndicator.classList.remove('show');
+                    if (data === '[DONE]') { typingIndicator.classList.remove('show'); setTimeout(loadDynamicSuggestions, 500); }
                     else { assistantMessage += data; contentDiv.textContent = assistantMessage; chatMessages.scrollTop = chatMessages.scrollHeight; }
                 }
             }
@@ -140,6 +244,7 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
         currentMode = btn.dataset.mode;
         document.getElementById('currentMode').textContent = btn.textContent.trim();
         currentSessionId = null;
+        document.getElementById('chatMessages').innerHTML = `<div class="message assistant"><div class="message-content">Mode switched to <strong>${btn.textContent.trim()}</strong>. How can I help you?</div></div>`;
         await initSession();
     });
 });

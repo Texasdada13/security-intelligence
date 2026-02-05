@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ organization.name }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item active">{{ organization.name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ organization.name }}</h2>
+            <p class="text-muted mb-0">{{ organization.industry or 'Industry not specified' }}</p>
+        </div>
+        <a href="/chat?org={{ organization.id }}" class="btn btn-primary"><i class="bi bi-chat-dots me-1"></i>Ask AI CISO</a>
+    </div>
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="text-muted mb-1">Vulnerabilities</div>
+                <div class="stat-value">{{ vulnerabilities|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="text-muted mb-1">Incidents</div>
+                <div class="stat-value">{{ incidents|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="text-muted mb-1">Risk Level</div>
+                <div class="stat-value">{{ risk.overall_risk_level if risk else 'N/A' }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="text-muted mb-1">Compliance</div>
+                <div class="stat-value">{{ compliance.audit_readiness if compliance else 'N/A' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-bug me-2"></i>Vulnerabilities</h5></div>
+                <div class="card-body">
+                    {% if vulnerabilities %}
+                    <table class="table table-sm">
+                        <thead><tr><th>Title</th><th>Severity</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for v in vulnerabilities[:5] %}
+                            <tr>
+                                <td>{{ v.title[:30] }}{% if v.title|length > 30 %}...{% endif %}</td>
+                                <td><span class="badge badge-{{ v.severity|lower }}">{{ v.severity }}</span></td>
+                                <td>{{ v.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted text-center py-3">No vulnerabilities tracked</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Incidents</h5></div>
+                <div class="card-body">
+                    {% if incidents %}
+                    <table class="table table-sm">
+                        <thead><tr><th>Title</th><th>Severity</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for i in incidents[:5] %}
+                            <tr>
+                                <td>{{ i.title[:30] }}{% if i.title|length > 30 %}...{% endif %}</td>
+                                <td><span class="badge badge-{{ i.severity|lower }}">{{ i.severity }}</span></td>
+                                <td>{{ i.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted text-center py-3">No incidents tracked</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

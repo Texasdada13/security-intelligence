@@ -1,0 +1,237 @@
+"""Security Intelligence - Database Models"""
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+import uuid
+
+db = SQLAlchemy()
+
+
+def generate_uuid():
+    return str(uuid.uuid4())
+
+
+class Organization(db.Model):
+    __tablename__ = 'organizations'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    name = db.Column(db.String(200), nullable=False)
+    industry = db.Column(db.String(100))
+    size = db.Column(db.String(50))
+    compliance_frameworks = db.Column(db.JSON)  # List of applicable frameworks
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    assets = db.relationship('Asset', backref='organization', lazy=True)
+    vulnerabilities = db.relationship('Vulnerability', backref='organization', lazy=True)
+    incidents = db.relationship('Incident', backref='organization', lazy=True)
+    compliance_assessments = db.relationship('ComplianceAssessment', backref='organization', lazy=True)
+    risk_assessments = db.relationship('RiskAssessment', backref='organization', lazy=True)
+    chat_sessions = db.relationship('ChatSession', backref='organization', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'industry': self.industry,
+            'size': self.size,
+            'compliance_frameworks': self.compliance_frameworks,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class Asset(db.Model):
+    __tablename__ = 'assets'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    asset_type = db.Column(db.String(50))  # Server, Workstation, Network Device, Application, Data
+    criticality = db.Column(db.String(20))  # Critical, High, Medium, Low
+    ip_address = db.Column(db.String(50))
+    hostname = db.Column(db.String(200))
+    owner = db.Column(db.String(100))
+    location = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='active')
+    last_scanned = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'asset_type': self.asset_type,
+            'criticality': self.criticality,
+            'ip_address': self.ip_address,
+            'hostname': self.hostname,
+            'status': self.status,
+            'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None
+        }
+
+
+class Vulnerability(db.Model):
+    __tablename__ = 'vulnerabilities'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    asset_id = db.Column(db.String(36), db.ForeignKey('assets.id'))
+    title = db.Column(db.String(300), nullable=False)
+    cve_id = db.Column(db.String(20))
+    severity = db.Column(db.String(20))  # Critical, High, Medium, Low
+    cvss_score = db.Column(db.Float)
+    status = db.Column(db.String(30), default='Open')  # Open, In Progress, Remediated, Accepted
+    description = db.Column(db.Text)
+    remediation_notes = db.Column(db.Text)
+    discovered_at = db.Column(db.DateTime, default=datetime.utcnow)
+    due_date = db.Column(db.DateTime)
+    remediated_at = db.Column(db.DateTime)
+
+    asset = db.relationship('Asset', backref='vulnerabilities')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'cve_id': self.cve_id,
+            'severity': self.severity,
+            'cvss_score': self.cvss_score,
+            'status': self.status,
+            'discovered_at': self.discovered_at.isoformat() if self.discovered_at else None,
+            'due_date': self.due_date.isoformat() if self.due_date else None
+        }
+
+
+class Incident(db.Model):
+    __tablename__ = 'incidents'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    title = db.Column(db.String(300), nullable=False)
+    category = db.Column(db.String(50))  # Malware, Data Breach, Phishing, etc.
+    severity = db.Column(db.String(20))  # Critical, High, Medium, Low
+    status = db.Column(db.String(30), default='New')  # New, Investigating, Contained, Resolved, Closed
+    description = db.Column(db.Text)
+    affected_systems = db.Column(db.JSON)  # List of affected system names
+    root_cause = db.Column(db.Text)
+    impact_assessment = db.Column(db.Text)
+    lessons_learned = db.Column(db.Text)
+    assigned_to = db.Column(db.String(100))
+    detected_at = db.Column(db.DateTime, default=datetime.utcnow)
+    contained_at = db.Column(db.DateTime)
+    resolved_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'category': self.category,
+            'severity': self.severity,
+            'status': self.status,
+            'affected_systems': self.affected_systems,
+            'detected_at': self.detected_at.isoformat() if self.detected_at else None,
+            'assigned_to': self.assigned_to
+        }
+
+
+class ComplianceAssessment(db.Model):
+    __tablename__ = 'compliance_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    framework = db.Column(db.String(50))  # SOC2, HIPAA, PCI-DSS, etc.
+    overall_score = db.Column(db.Float)
+    overall_status = db.Column(db.String(30))
+    controls_total = db.Column(db.Integer)
+    controls_implemented = db.Column(db.Integer)
+    controls_partial = db.Column(db.Integer)
+    controls_missing = db.Column(db.Integer)
+    category_scores = db.Column(db.JSON)
+    critical_gaps = db.Column(db.JSON)
+    remediation_roadmap = db.Column(db.JSON)
+    audit_readiness = db.Column(db.String(30))
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'framework': self.framework,
+            'overall_score': self.overall_score,
+            'overall_status': self.overall_status,
+            'controls_total': self.controls_total,
+            'controls_implemented': self.controls_implemented,
+            'audit_readiness': self.audit_readiness,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }
+
+
+class RiskAssessment(db.Model):
+    __tablename__ = 'risk_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
+    overall_risk_score = db.Column(db.Float)
+    overall_risk_level = db.Column(db.String(20))
+    total_risks = db.Column(db.Integer)
+    critical_count = db.Column(db.Integer)
+    high_count = db.Column(db.Integer)
+    medium_count = db.Column(db.Integer)
+    low_count = db.Column(db.Integer)
+    top_risks = db.Column(db.JSON)
+    priority_actions = db.Column(db.JSON)
+    risk_trend = db.Column(db.String(20))
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'overall_risk_score': self.overall_risk_score,
+            'overall_risk_level': self.overall_risk_level,
+            'total_risks': self.total_risks,
+            'critical_count': self.critical_count,
+            'high_count': self.high_count,
+            'risk_trend': self.risk_trend,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }
+
+
+class ChatSession(db.Model):
+    __tablename__ = 'chat_sessions'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    mode = db.Column(db.String(50), default='general')
+    title = db.Column(db.String(200))
+    context = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    messages = db.relationship('ChatMessage', backref='session', lazy=True,
+                               order_by='ChatMessage.created_at')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'organization_id': self.organization_id,
+            'mode': self.mode,
+            'title': self.title,
+            'message_count': len(self.messages) if self.messages else 0,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    session_id = db.Column(db.String(36), db.ForeignKey('chat_sessions.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'role': self.role,
+            'content': self.content,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

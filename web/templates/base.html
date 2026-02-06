@@ -32,6 +32,25 @@
         .hero-section { background: var(--primary-gradient); padding: 4rem 0; margin-bottom: 2rem; }
         .feature-icon { width: 60px; height: 60px; background: var(--primary-gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
         .footer { background: var(--card-bg); padding: 2rem 0; margin-top: 3rem; border-top: 1px solid rgba(0, 200, 83, 0.2); }
+
+        /* Command Palette Styles */
+        .command-palette-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 9999; display: none; align-items: flex-start; justify-content: center; padding-top: 15vh; }
+        .command-palette-overlay.show { display: flex; }
+        .command-palette { background: var(--card-bg); border: 1px solid rgba(0, 200, 83, 0.3); border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); overflow: hidden; }
+        .command-input-wrapper { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .command-input { width: 100%; background: transparent; border: none; color: #fff; font-size: 1.1rem; outline: none; }
+        .command-input::placeholder { color: #888; }
+        .command-list { max-height: 400px; overflow-y: auto; padding: 0.5rem; }
+        .command-group-title { font-size: 0.75rem; text-transform: uppercase; color: #888; padding: 0.5rem 1rem; letter-spacing: 1px; }
+        .command-item { display: flex; align-items: center; padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+        .command-item:hover, .command-item.selected { background: rgba(0, 200, 83, 0.2); }
+        .command-item i { width: 24px; margin-right: 12px; color: var(--accent-color); }
+        .command-item-text { flex: 1; }
+        .command-item-title { font-weight: 500; }
+        .command-item-desc { font-size: 0.8rem; color: #888; }
+        .command-shortcut { font-size: 0.75rem; background: rgba(255, 255, 255, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; color: #aaa; }
+        .command-footer { padding: 0.75rem 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 0.8rem; color: #666; display: flex; gap: 1rem; }
+        .command-footer kbd { background: rgba(255, 255, 255, 0.1); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -58,8 +77,111 @@
             <small class="text-muted">Part of the Fractional C-Suite by Patriot Tech Systems</small>
         </div>
     </footer>
+    <!-- Command Palette -->
+    <div class="command-palette-overlay" id="commandPalette">
+        <div class="command-palette">
+            <div class="command-input-wrapper">
+                <i class="bi bi-search me-2 text-muted"></i>
+                <input type="text" class="command-input" id="commandInput" placeholder="Type a command or search..." autocomplete="off">
+            </div>
+            <div class="command-list" id="commandList"></div>
+            <div class="command-footer">
+                <span><kbd>↑↓</kbd> Navigate</span>
+                <span><kbd>Enter</kbd> Select</span>
+                <span><kbd>Esc</kbd> Close</span>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script>
+    const commands = [
+        { group: 'Navigation', items: [
+            { icon: 'bi-house', title: 'Go to Home', desc: 'Return to landing page', action: () => window.location.href = '/', shortcut: 'G H' },
+            { icon: 'bi-speedometer2', title: 'Go to Dashboard', desc: 'View security dashboard', action: () => window.location.href = '/dashboard', shortcut: 'G D' },
+            { icon: 'bi-chat-dots', title: 'Open AI CISO Chat', desc: 'Start a conversation', action: () => window.location.href = '/chat', shortcut: 'G C' },
+        ]},
+        { group: 'Actions', items: [
+            { icon: 'bi-magic', title: 'Load Demo Data', desc: 'Generate sample security data', action: () => { closePalette(); if(typeof loadDemoData === 'function') loadDemoData(); }, shortcut: 'L D' },
+            { icon: 'bi-file-earmark-spreadsheet', title: 'Export CSV', desc: 'Download data as CSV', action: () => { closePalette(); if(typeof exportCSV === 'function') exportCSV(); }, shortcut: 'E C' },
+            { icon: 'bi-file-earmark-richtext', title: 'Export Report', desc: 'Generate security report', action: () => { closePalette(); if(typeof exportHTML === 'function') exportHTML(); }, shortcut: 'E R' },
+            { icon: 'bi-arrow-clockwise', title: 'Refresh Dashboard', desc: 'Reload current data', action: () => { closePalette(); if(typeof refreshDashboard === 'function') refreshDashboard(); else window.location.reload(); }, shortcut: 'R' },
+        ]},
+        { group: 'Help', items: [
+            { icon: 'bi-keyboard', title: 'Keyboard Shortcuts', desc: 'View all shortcuts', action: () => showShortcuts(), shortcut: '?' },
+            { icon: 'bi-info-circle', title: 'About', desc: 'Security Intelligence info', action: () => alert('Security Intelligence v1.0\nYour Fractional CISO\nPart of the C-Suite by Patriot Tech Systems') },
+        ]}
+    ];
+
+    let selectedIndex = 0;
+    let filteredCommands = [];
+
+    function openPalette() {
+        document.getElementById('commandPalette').classList.add('show');
+        document.getElementById('commandInput').value = '';
+        document.getElementById('commandInput').focus();
+        renderCommands('');
+    }
+
+    function closePalette() {
+        document.getElementById('commandPalette').classList.remove('show');
+        selectedIndex = 0;
+    }
+
+    function renderCommands(filter) {
+        const list = document.getElementById('commandList');
+        filteredCommands = [];
+        let html = '';
+        commands.forEach(group => {
+            const matchingItems = group.items.filter(item => item.title.toLowerCase().includes(filter.toLowerCase()) || item.desc.toLowerCase().includes(filter.toLowerCase()));
+            if (matchingItems.length > 0) {
+                html += `<div class="command-group-title">${group.group}</div>`;
+                matchingItems.forEach(item => {
+                    const globalIndex = filteredCommands.length;
+                    filteredCommands.push(item);
+                    html += `<div class="command-item ${globalIndex === selectedIndex ? 'selected' : ''}" data-index="${globalIndex}">
+                        <i class="bi ${item.icon}"></i>
+                        <div class="command-item-text"><div class="command-item-title">${item.title}</div><div class="command-item-desc">${item.desc}</div></div>
+                        ${item.shortcut ? `<span class="command-shortcut">${item.shortcut}</span>` : ''}</div>`;
+                });
+            }
+        });
+        list.innerHTML = html || '<div class="text-center text-muted py-4">No commands found</div>';
+        list.querySelectorAll('.command-item').forEach(el => {
+            el.addEventListener('click', () => executeCommand(parseInt(el.dataset.index)));
+            el.addEventListener('mouseenter', () => { selectedIndex = parseInt(el.dataset.index); updateSelection(); });
+        });
+    }
+
+    function updateSelection() {
+        document.querySelectorAll('.command-item').forEach(el => el.classList.toggle('selected', parseInt(el.dataset.index) === selectedIndex));
+        const selected = document.querySelector('.command-item.selected');
+        if (selected) selected.scrollIntoView({ block: 'nearest' });
+    }
+
+    function executeCommand(index) { if (filteredCommands[index]) filteredCommands[index].action(); }
+
+    function showShortcuts() {
+        closePalette();
+        alert('Keyboard Shortcuts:\n\nCtrl+K / Cmd+K - Open Command Palette\nG H - Go to Home\nG D - Go to Dashboard\nG C - Go to Chat\nL D - Load Demo Data\nE C - Export CSV\nE R - Export Report\nR - Refresh\n? - Show Shortcuts');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openPalette(); return; }
+        const palette = document.getElementById('commandPalette');
+        if (!palette.classList.contains('show')) return;
+        if (e.key === 'Escape') closePalette();
+        else if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, filteredCommands.length - 1); updateSelection(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); updateSelection(); }
+        else if (e.key === 'Enter') { e.preventDefault(); executeCommand(selectedIndex); }
+    });
+
+    document.getElementById('commandInput').addEventListener('input', (e) => { selectedIndex = 0; renderCommands(e.target.value); });
+    document.getElementById('commandPalette').addEventListener('click', (e) => { if (e.target.id === 'commandPalette') closePalette(); });
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

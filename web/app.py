@@ -362,6 +362,83 @@ def create_app():
 
         return jsonify(uploaded_file.to_dict())
 
+    # ==================== DASHBOARD API ====================
+
+    @app.route('/api/dashboard/<org_id>')
+    def api_dashboard_data(org_id):
+        """Get dashboard data for an organization."""
+        org = OrganizationRepository.get_by_id(org_id)
+        if not org:
+            return jsonify({'error': 'Organization not found'}), 404
+
+        vulnerabilities = VulnerabilityRepository.get_by_organization(org_id)
+        incidents = IncidentRepository.get_by_organization(org_id)
+        compliance = ComplianceRepository.get_latest(org_id)
+
+        # Calculate vulnerability metrics
+        vuln_by_severity = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        open_vulns = 0
+        for v in vulnerabilities:
+            sev = (v.severity or 'medium').lower()
+            if sev in vuln_by_severity:
+                vuln_by_severity[sev] += 1
+            if v.status in ['open', 'in_progress']:
+                open_vulns += 1
+
+        # Calculate incident metrics
+        incident_by_status = {'open': 0, 'investigating': 0, 'contained': 0, 'resolved': 0}
+        for i in incidents:
+            status = (i.status or 'open').lower()
+            if status in incident_by_status:
+                incident_by_status[status] += 1
+
+        # MTTR calculation (mock average)
+        mttr_hours = 4.2
+
+        # Calculate security posture score
+        total_vulns = len(vulnerabilities)
+        critical_weight = vuln_by_severity['critical'] * 4
+        high_weight = vuln_by_severity['high'] * 2
+        medium_weight = vuln_by_severity['medium']
+        risk_score = critical_weight + high_weight + medium_weight
+        posture_score = max(0, 100 - (risk_score * 2))
+
+        # Compliance data
+        compliance_data = []
+        if compliance:
+            compliance_data = compliance.framework_scores or []
+        else:
+            # Default frameworks with mock scores
+            compliance_data = [
+                {'framework': 'SOC 2', 'score': 85},
+                {'framework': 'GDPR', 'score': 78},
+                {'framework': 'HIPAA', 'score': 72},
+                {'framework': 'PCI DSS', 'score': 90}
+            ]
+
+        # Risk trend data (mock)
+        import random
+        risk_trend = {
+            'labels': ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+            'risk_scores': [posture_score - 10 + random.randint(-5, 15) for _ in range(6)]
+        }
+        risk_trend['risk_scores'][-1] = posture_score
+
+        return jsonify({
+            'organization': org.to_dict(),
+            'metrics': {
+                'critical_vulns': vuln_by_severity['critical'],
+                'open_incidents': incident_by_status['open'] + incident_by_status['investigating'],
+                'compliance_score': sum(c['score'] for c in compliance_data) // len(compliance_data) if compliance_data else 0,
+                'mttr_hours': mttr_hours,
+                'posture_score': posture_score
+            },
+            'vulnerabilities_by_severity': vuln_by_severity,
+            'incidents_by_status': incident_by_status,
+            'compliance': compliance_data,
+            'risk_trend': risk_trend
+        })
+
     # ==================== DEMO DATA API ====================
 
     @app.route('/api/demo/generate', methods=['POST'])

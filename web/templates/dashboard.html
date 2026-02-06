@@ -1,50 +1,181 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metric-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--accent-color);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0, 200, 83, 0.2); }
+    .metric-card.critical { border-left-color: #f44336; }
+    .metric-card.warning { border-left-color: #ff9800; }
+    .metric-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .metric-value.danger { background: linear-gradient(135deg, #f44336, #ff5722); -webkit-background-clip: text; background-clip: text; }
+    .metric-label { color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+    .chart-container { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; height: 350px; }
+    .org-selector { background: var(--card-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+    .quick-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.9); display: flex; align-items: center; justify-content: center; border-radius: 12px; z-index: 10; }
+    .posture-score { font-size: 3rem; font-weight: 700; }
+    .posture-score.good { color: #00c853; }
+    .posture-score.warning { color: #ff9800; }
+    .posture-score.critical { color: #f44336; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="bi bi-speedometer2 me-2"></i>Security Dashboard</h2>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOrgModal">
-            <i class="bi bi-plus-lg me-1"></i>Add Organization
-        </button>
+        <h2><i class="bi bi-shield-check me-2"></i>Security Dashboard</h2>
+        <div class="quick-actions">
+            <button class="btn btn-outline-light btn-sm" onclick="loadDemoData()"><i class="bi bi-magic me-1"></i>Load Demo Data</button>
+            <button class="btn btn-outline-light btn-sm" onclick="refreshDashboard()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addOrgModal"><i class="bi bi-plus-lg me-1"></i>Add Organization</button>
+        </div>
     </div>
-    {% if organizations %}
-    <div class="row g-4">
-        {% for org in organizations %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-header"><h5 class="mb-0">{{ org.name }}</h5></div>
-                <div class="card-body">
-                    <p class="text-muted mb-2"><i class="bi bi-building me-1"></i>{{ org.industry or 'Not specified' }}</p>
-                    <p class="text-muted mb-2"><i class="bi bi-people me-1"></i>{{ org.size or 'Not specified' }}</p>
-                    {% if org.compliance_frameworks %}
-                    <p class="mb-3">
-                        {% for f in org.compliance_frameworks[:3] %}
-                        <span class="badge bg-secondary me-1">{{ f }}</span>
-                        {% endfor %}
-                    </p>
-                    {% endif %}
-                    <a href="/organization/{{ org.id }}" class="btn btn-primary w-100">
-                        <i class="bi bi-arrow-right me-1"></i>View Details
-                    </a>
+
+    <div class="org-selector">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <label class="form-label mb-0 text-muted">Select Organization</label>
+                <select id="orgSelector" class="form-select bg-dark text-light border-secondary mt-1">
+                    <option value="">-- Select Organization --</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}">{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label mb-0 text-muted">Time Period</label>
+                <select id="periodSelector" class="form-select bg-dark text-light border-secondary mt-1">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="text-muted small">Security Posture</div>
+                <div class="posture-score good" id="postureScore">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="metric-card critical">
+                <div class="metric-label">Critical Vulns</div>
+                <div class="metric-value danger" id="metricCritical">0</div>
+                <div class="text-muted small">Require immediate attention</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card warning">
+                <div class="metric-label">Open Incidents</div>
+                <div class="metric-value" id="metricIncidents">0</div>
+                <div class="text-muted small">Active investigations</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Compliance</div>
+                <div class="metric-value" id="metricCompliance">0%</div>
+                <div class="text-muted small">Average score</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">MTTR</div>
+                <div class="metric-value" id="metricMTTR">0h</div>
+                <div class="text-muted small">Mean time to resolve</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="chart-container position-relative">
+                <h6 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Vulnerabilities by Severity</h6>
+                <canvas id="vulnChart"></canvas>
+                <div class="loading-overlay" id="vulnLoading" style="display: none;">
+                    <div class="spinner-border text-primary" role="status"></div>
                 </div>
             </div>
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-building display-1 text-muted mb-3"></i>
-            <h4>No Organizations Yet</h4>
-            <p class="text-muted mb-4">Add your first organization to start managing security</p>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOrgModal">
-                <i class="bi bi-plus-lg me-1"></i>Add Organization
-            </button>
+        <div class="col-lg-4">
+            <div class="chart-container position-relative">
+                <h6 class="mb-3"><i class="bi bi-pie-chart me-2"></i>Incident Status</h6>
+                <canvas id="incidentChart"></canvas>
+            </div>
         </div>
     </div>
-    {% endif %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="chart-container position-relative">
+                <h6 class="mb-3"><i class="bi bi-check2-square me-2"></i>Compliance by Framework</h6>
+                <canvas id="complianceChart"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="chart-container position-relative">
+                <h6 class="mb-3"><i class="bi bi-graph-up me-2"></i>Risk Trend</h6>
+                <canvas id="riskChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organizations List -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-building me-2"></i>Organizations</h5>
+            <span class="badge bg-dark">{{ organizations|length }} total</span>
+        </div>
+        <div class="card-body">
+            {% if organizations %}
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead><tr><th>Organization</th><th>Industry</th><th>Frameworks</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for org in organizations %}
+                        <tr>
+                            <td><strong>{{ org.name }}</strong></td>
+                            <td>{{ org.industry or '--' }}</td>
+                            <td>{% for f in org.compliance_frameworks[:2] %}<span class="badge bg-secondary me-1">{{ f }}</span>{% endfor %}</td>
+                            <td>
+                                <a href="/organization/{{ org.id }}" class="btn btn-sm btn-outline-light"><i class="bi bi-eye"></i></a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteOrg('{{ org.id }}')"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-shield display-1 text-muted mb-3"></i>
+                <h4>No Organizations Yet</h4>
+                <p class="text-muted mb-4">Add an organization or load demo data to get started</p>
+                <button class="btn btn-primary me-2" onclick="loadDemoData()"><i class="bi bi-magic me-1"></i>Load Demo Data</button>
+                <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#addOrgModal"><i class="bi bi-plus-lg me-1"></i>Add Organization</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
 <div class="modal fade" id="addOrgModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark">
@@ -89,23 +220,169 @@
     </div>
 </div>
 {% endblock %}
+
 {% block extra_js %}
 <script>
+let vulnChart, incidentChart, complianceChart, riskChart;
+
+const chartColors = {
+    critical: 'rgba(244, 67, 54, 0.8)',
+    high: 'rgba(255, 152, 0, 0.8)',
+    medium: 'rgba(255, 235, 59, 0.8)',
+    low: 'rgba(76, 175, 80, 0.8)',
+    green: 'rgba(0, 200, 83, 0.8)',
+    blue: 'rgba(30, 136, 229, 0.8)',
+    purple: 'rgba(156, 39, 176, 0.8)',
+    cyan: 'rgba(0, 188, 212, 0.8)'
+};
+
+function initCharts() {
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#c9d1d9' } } },
+        scales: {
+            x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+            y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+        }
+    };
+
+    vulnChart = new Chart(document.getElementById('vulnChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Critical', 'High', 'Medium', 'Low'],
+            datasets: [{ label: 'Open', data: [0, 0, 0, 0], backgroundColor: [chartColors.critical, chartColors.high, chartColors.medium, chartColors.low] }]
+        },
+        options: chartOptions
+    });
+
+    incidentChart = new Chart(document.getElementById('incidentChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Open', 'Investigating', 'Contained', 'Resolved'],
+            datasets: [{ data: [0, 0, 0, 0], backgroundColor: [chartColors.critical, chartColors.high, chartColors.blue, chartColors.green], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#c9d1d9' } } }, cutout: '60%' }
+    });
+
+    complianceChart = new Chart(document.getElementById('complianceChart'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Compliance %', data: [], backgroundColor: chartColors.green }] },
+        options: { ...chartOptions, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { ...chartOptions.scales, x: { ...chartOptions.scales.x, max: 100 } } }
+    });
+
+    riskChart = new Chart(document.getElementById('riskChart'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{ label: 'Risk Score', data: [], borderColor: chartColors.critical, backgroundColor: 'rgba(244, 67, 54, 0.1)', fill: true, tension: 0.4 }]
+        },
+        options: chartOptions
+    });
+}
+
+function updateMetrics(data) {
+    const metrics = data.metrics_summary || {};
+    const vulns = metrics.vulnerabilities || {};
+
+    document.getElementById('metricCritical').textContent = vulns.critical || 0;
+    document.getElementById('metricIncidents').textContent = metrics.open_incidents || 0;
+    document.getElementById('metricCompliance').textContent = (metrics.avg_compliance_score || 0).toFixed(0) + '%';
+    document.getElementById('metricMTTR').textContent = (metrics.mttr_hours || 0).toFixed(0) + 'h';
+
+    const posture = metrics.posture_score || 0;
+    const postureEl = document.getElementById('postureScore');
+    postureEl.textContent = posture;
+    postureEl.className = 'posture-score ' + (posture >= 70 ? 'good' : posture >= 50 ? 'warning' : 'critical');
+}
+
+function updateCharts(data) {
+    const vulns = data.metrics_summary?.vulnerabilities || {};
+    const incidents = data.incidents || [];
+    const compliance = data.compliance || [];
+
+    // Vulnerability chart
+    vulnChart.data.datasets[0].data = [vulns.critical || 0, vulns.high || 0, vulns.medium || 0, vulns.low || 0];
+    vulnChart.update();
+
+    // Incident chart
+    const incidentCounts = { open: 0, investigating: 0, contained: 0, resolved: 0 };
+    incidents.forEach(i => { if (incidentCounts[i.status] !== undefined) incidentCounts[i.status]++; });
+    incidentChart.data.datasets[0].data = [incidentCounts.open, incidentCounts.investigating, incidentCounts.contained, incidentCounts.resolved];
+    incidentChart.update();
+
+    // Compliance chart
+    if (compliance.length > 0) {
+        complianceChart.data.labels = compliance.map(c => c.framework);
+        complianceChart.data.datasets[0].data = compliance.map(c => c.score);
+        complianceChart.update();
+    }
+
+    // Risk trend (simulated)
+    const days = 30;
+    const labels = [];
+    const riskData = [];
+    for (let i = days; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        riskData.push(Math.max(20, Math.min(100, 50 + Math.random() * 30 - 15)));
+    }
+    riskChart.data.labels = labels;
+    riskChart.data.datasets[0].data = riskData;
+    riskChart.update();
+}
+
+async function loadDemoData() {
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading...';
+    try {
+        const response = await fetch('/api/demo/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ organization_name: 'Demo Security Corp' }) });
+        if (response.ok) {
+            const result = await response.json();
+            alert(`Demo data loaded! Created ${result.vulnerabilities_created} vulnerabilities and ${result.incidents_created} incidents.`);
+            window.location.reload();
+        }
+    } catch (error) { alert('Error: ' + error.message); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-magic me-1"></i>Load Demo Data'; }
+}
+
+async function loadOrgData(orgId) {
+    if (!orgId) return;
+    document.getElementById('vulnLoading').style.display = 'flex';
+    try {
+        const response = await fetch('/api/demo/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seed: orgId.charCodeAt(0) }) });
+        if (response.ok) { const data = await response.json(); updateMetrics(data); updateCharts(data); }
+    } catch (error) { console.error('Error:', error); }
+    finally { document.getElementById('vulnLoading').style.display = 'none'; }
+}
+
+function refreshDashboard() {
+    const orgId = document.getElementById('orgSelector').value;
+    if (orgId) loadOrgData(orgId); else window.location.reload();
+}
+
+async function deleteOrg(orgId) {
+    if (!confirm('Delete this organization?')) return;
+    await fetch(`/api/organizations/${orgId}`, { method: 'DELETE' });
+    window.location.reload();
+}
+
 document.getElementById('addOrgForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const frameworks = Array.from(e.target.querySelector('[name="frameworks"]').selectedOptions).map(o => o.value);
-    const data = {
-        name: formData.get('name'),
-        industry: formData.get('industry'),
-        compliance_frameworks: frameworks
-    };
-    const response = await fetch('/api/organizations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    });
+    const data = { name: formData.get('name'), industry: formData.get('industry'), compliance_frameworks: frameworks };
+    const response = await fetch('/api/organizations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     if (response.ok) window.location.reload();
+});
+
+document.getElementById('orgSelector').addEventListener('change', (e) => loadOrgData(e.target.value));
+
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    const selector = document.getElementById('orgSelector');
+    if (selector.options.length > 1) { selector.selectedIndex = 1; loadOrgData(selector.value); }
 });
 </script>
 {% endblock %}

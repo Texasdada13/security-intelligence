@@ -31,6 +31,18 @@
     .posture-score.good { color: #00c853; }
     .posture-score.warning { color: #ff9800; }
     .posture-score.critical { color: #f44336; }
+    .alerts-panel { background: var(--card-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+    .alert-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 20px; }
+    .alert-badge.critical { background: #f44336; color: white; }
+    .alert-badge.warning { background: #ff9800; color: white; }
+    .alert-badge.info { background: #2196f3; color: white; }
+    .alert-item { border-left: 4px solid; padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 0 8px 8px 0; }
+    .alert-item.critical { border-color: #f44336; }
+    .alert-item.warning { border-color: #ff9800; }
+    .alert-item.info { border-color: #2196f3; }
+    .alert-title { font-weight: 600; margin-bottom: 0.25rem; }
+    .alert-message { font-size: 0.9rem; color: #aaa; margin-bottom: 0.25rem; }
+    .alert-recommendation { font-size: 0.85rem; color: #888; font-style: italic; }
 </style>
 {% endblock %}
 
@@ -77,6 +89,15 @@
                 <div class="posture-score good" id="postureScore">--</div>
             </div>
         </div>
+    </div>
+
+    <!-- Alerts Panel -->
+    <div class="alerts-panel" id="alertsPanel" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-bell-fill me-2"></i>Security Alerts</h5>
+            <div id="alertBadges"></div>
+        </div>
+        <div id="alertsList"></div>
     </div>
 
     <!-- Key Metrics Row -->
@@ -356,14 +377,55 @@ async function loadDemoData() {
 }
 
 async function loadOrgData(orgId) {
-    if (!orgId) return;
+    if (!orgId) { hideAlerts(); return; }
     document.getElementById('vulnLoading').style.display = 'flex';
     try {
         const response = await fetch('/api/demo/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seed: orgId.charCodeAt(0) }) });
         if (response.ok) { const data = await response.json(); updateMetrics(data); updateCharts(data); }
+        loadAlerts(orgId);
     } catch (error) { console.error('Error:', error); }
     finally { document.getElementById('vulnLoading').style.display = 'none'; }
 }
+
+async function loadAlerts(orgId) {
+    try {
+        const response = await fetch(`/api/alerts/${orgId}`);
+        if (response.ok) {
+            const data = await response.json();
+            displayAlerts(data.alerts, data.summary);
+        }
+    } catch (error) { console.error('Error loading alerts:', error); }
+}
+
+function displayAlerts(alerts, summary) {
+    const panel = document.getElementById('alertsPanel');
+    const badgesDiv = document.getElementById('alertBadges');
+    const listDiv = document.getElementById('alertsList');
+
+    if (alerts.length === 0) { panel.style.display = 'none'; return; }
+
+    panel.style.display = 'block';
+
+    let badges = '';
+    if (summary.critical > 0) badges += `<span class="alert-badge critical me-1">${summary.critical} Critical</span>`;
+    if (summary.warning > 0) badges += `<span class="alert-badge warning me-1">${summary.warning} Warning</span>`;
+    if (summary.info > 0) badges += `<span class="alert-badge info">${summary.info} Info</span>`;
+    badgesDiv.innerHTML = badges;
+
+    let html = '';
+    alerts.slice(0, 5).forEach(alert => {
+        html += `
+            <div class="alert-item ${alert.severity}">
+                <div class="alert-title"><i class="bi bi-exclamation-triangle-fill me-1"></i>${alert.title}</div>
+                <div class="alert-message">${alert.message}</div>
+                <div class="alert-recommendation"><i class="bi bi-lightbulb me-1"></i>${alert.recommendation}</div>
+            </div>`;
+    });
+    if (alerts.length > 5) html += `<div class="text-muted text-center small">+ ${alerts.length - 5} more alerts</div>`;
+    listDiv.innerHTML = html;
+}
+
+function hideAlerts() { document.getElementById('alertsPanel').style.display = 'none'; }
 
 function refreshDashboard() {
     const orgId = document.getElementById('orgSelector').value;

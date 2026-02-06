@@ -41,6 +41,14 @@
         <div class="quick-actions">
             <button class="btn btn-outline-light btn-sm" onclick="loadDemoData()"><i class="bi bi-magic me-1"></i>Load Demo Data</button>
             <button class="btn btn-outline-light btn-sm" onclick="refreshDashboard()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+            <div class="btn-group">
+                <button class="btn btn-outline-success btn-sm" onclick="exportCSV()" id="exportCsvBtn" disabled>
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+                </button>
+                <button class="btn btn-outline-info btn-sm" onclick="exportHTML()" id="exportHtmlBtn" disabled>
+                    <i class="bi bi-file-earmark-richtext me-1"></i>Export Report
+                </button>
+            </div>
             <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addOrgModal"><i class="bi bi-plus-lg me-1"></i>Add Organization</button>
         </div>
     </div>
@@ -377,12 +385,34 @@ document.getElementById('addOrgForm').addEventListener('submit', async (e) => {
     if (response.ok) window.location.reload();
 });
 
-document.getElementById('orgSelector').addEventListener('change', (e) => loadOrgData(e.target.value));
+document.getElementById('orgSelector').addEventListener('change', (e) => {
+    loadOrgData(e.target.value);
+    const hasOrg = !!e.target.value;
+    document.getElementById('exportCsvBtn').disabled = !hasOrg;
+    document.getElementById('exportHtmlBtn').disabled = !hasOrg;
+});
+
+function exportCSV() {
+    const orgId = document.getElementById('orgSelector').value;
+    if (!orgId) { alert('Please select an organization first'); return; }
+    window.location.href = `/api/export/${orgId}/csv`;
+}
+
+function exportHTML() {
+    const orgId = document.getElementById('orgSelector').value;
+    if (!orgId) { alert('Please select an organization first'); return; }
+    window.open(`/api/export/${orgId}/html`, '_blank');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initCharts();
     const selector = document.getElementById('orgSelector');
-    if (selector.options.length > 1) { selector.selectedIndex = 1; loadOrgData(selector.value); }
+    if (selector.options.length > 1) {
+        selector.selectedIndex = 1;
+        loadOrgData(selector.value);
+        document.getElementById('exportCsvBtn').disabled = false;
+        document.getElementById('exportHtmlBtn').disabled = false;
+    }
 });
 </script>
 {% endblock %}

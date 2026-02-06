@@ -14,6 +14,7 @@ from src.patterns.security_scoring import create_security_posture_engine
 from src.database.models import UploadedFile
 from src.patterns.compliance_engine import create_compliance_engine, ComplianceFramework
 from src.demo.data_generator import create_security_demo_generator
+from src.reports.report_generator import create_report_generator
 
 
 def create_app():
@@ -33,6 +34,7 @@ def create_app():
 
     security_engine = create_security_posture_engine()
     file_analyzer = create_file_analyzer()
+    report_generator = create_report_generator()
 
     # ==================== PAGE ROUTES ====================
 
@@ -438,6 +440,118 @@ def create_app():
             'compliance': compliance_data,
             'risk_trend': risk_trend
         })
+
+    # ==================== EXPORT API ====================
+
+    @app.route('/api/export/<org_id>/csv')
+    def api_export_csv(org_id):
+        """Export dashboard data as CSV."""
+        org = OrganizationRepository.get_by_id(org_id)
+        if not org:
+            return jsonify({'error': 'Organization not found'}), 404
+
+        vulnerabilities = VulnerabilityRepository.get_by_organization(org_id)
+        incidents = IncidentRepository.get_by_organization(org_id)
+        compliance = ComplianceRepository.get_latest(org_id)
+
+        vuln_by_severity = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        for v in vulnerabilities:
+            sev = (v.severity or 'medium').lower()
+            if sev in vuln_by_severity:
+                vuln_by_severity[sev] += 1
+
+        incident_by_status = {'open': 0, 'investigating': 0, 'contained': 0, 'resolved': 0}
+        for i in incidents:
+            status = (i.status or 'open').lower()
+            if status in incident_by_status:
+                incident_by_status[status] += 1
+
+        critical_weight = vuln_by_severity['critical'] * 4
+        high_weight = vuln_by_severity['high'] * 2
+        medium_weight = vuln_by_severity['medium']
+        risk_score = critical_weight + high_weight + medium_weight
+        posture_score = max(0, 100 - (risk_score * 2))
+
+        compliance_data = compliance.framework_scores if compliance else [
+            {'framework': 'SOC 2', 'score': 85},
+            {'framework': 'GDPR', 'score': 78},
+            {'framework': 'HIPAA', 'score': 72},
+            {'framework': 'PCI DSS', 'score': 90}
+        ]
+
+        data = {
+            'metrics': {
+                'critical_vulns': vuln_by_severity['critical'],
+                'open_incidents': incident_by_status['open'] + incident_by_status['investigating'],
+                'compliance_score': sum(c['score'] for c in compliance_data) // len(compliance_data) if compliance_data else 0,
+                'mttr_hours': 4.2,
+                'posture_score': posture_score
+            },
+            'vulnerabilities_by_severity': vuln_by_severity,
+            'incidents_by_status': incident_by_status,
+            'compliance': compliance_data
+        }
+
+        report_type = request.args.get('type', 'full')
+        csv_content = report_generator.generate_csv(data, report_type)
+
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=security_report_{org_id}.csv'}
+        )
+
+    @app.route('/api/export/<org_id>/html')
+    def api_export_html(org_id):
+        """Export dashboard data as HTML report."""
+        org = OrganizationRepository.get_by_id(org_id)
+        if not org:
+            return jsonify({'error': 'Organization not found'}), 404
+
+        vulnerabilities = VulnerabilityRepository.get_by_organization(org_id)
+        incidents = IncidentRepository.get_by_organization(org_id)
+        compliance = ComplianceRepository.get_latest(org_id)
+
+        vuln_by_severity = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        for v in vulnerabilities:
+            sev = (v.severity or 'medium').lower()
+            if sev in vuln_by_severity:
+                vuln_by_severity[sev] += 1
+
+        incident_by_status = {'open': 0, 'investigating': 0, 'contained': 0, 'resolved': 0}
+        for i in incidents:
+            status = (i.status or 'open').lower()
+            if status in incident_by_status:
+                incident_by_status[status] += 1
+
+        critical_weight = vuln_by_severity['critical'] * 4
+        high_weight = vuln_by_severity['high'] * 2
+        medium_weight = vuln_by_severity['medium']
+        risk_score = critical_weight + high_weight + medium_weight
+        posture_score = max(0, 100 - (risk_score * 2))
+
+        compliance_data = compliance.framework_scores if compliance else [
+            {'framework': 'SOC 2', 'score': 85},
+            {'framework': 'GDPR', 'score': 78},
+            {'framework': 'HIPAA', 'score': 72},
+            {'framework': 'PCI DSS', 'score': 90}
+        ]
+
+        data = {
+            'metrics': {
+                'critical_vulns': vuln_by_severity['critical'],
+                'open_incidents': incident_by_status['open'] + incident_by_status['investigating'],
+                'compliance_score': sum(c['score'] for c in compliance_data) // len(compliance_data) if compliance_data else 0,
+                'mttr_hours': 4.2,
+                'posture_score': posture_score
+            },
+            'vulnerabilities_by_severity': vuln_by_severity,
+            'incidents_by_status': incident_by_status,
+            'compliance': compliance_data
+        }
+
+        html_content = report_generator.generate_html_report(data, org.name)
+        return Response(html_content, mimetype='text/html')
 
     # ==================== DEMO DATA API ====================
 

@@ -51,6 +51,127 @@
         .command-shortcut { font-size: 0.75rem; background: rgba(255, 255, 255, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; color: #aaa; }
         .command-footer { padding: 0.75rem 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 0.8rem; color: #666; display: flex; gap: 1rem; }
         .command-footer kbd { background: rgba(255, 255, 255, 0.1); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; }
+
+        /* Settings Modal Styles */
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-overlay.show { display: flex; }
+        .settings-modal {
+            background: var(--card-bg);
+            border: 1px solid rgba(0, 200, 83, 0.3);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        .settings-header {
+            background: var(--primary-gradient);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .settings-header h5 { margin: 0; font-weight: 600; }
+        .settings-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .settings-close:hover { opacity: 1; }
+        .settings-body { padding: 1.5rem; }
+        .settings-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .settings-section:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .settings-section h6 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+            letter-spacing: 1px;
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+        }
+        .setting-label { font-weight: 500; }
+        .setting-desc { font-size: 0.8rem; color: #888; margin-top: 0.25rem; }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.2);
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--primary-gradient); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+        .settings-select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .settings-select option { background: var(--card-bg); }
+        .settings-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        /* Light Theme */
+        body.light-theme {
+            --dark-bg: #f0f4f8;
+            --card-bg: #ffffff;
+            color: #333;
+        }
+        body.light-theme .navbar { box-shadow: 0 2px 20px rgba(0, 200, 83, 0.2); }
+        body.light-theme .card { border-color: rgba(0, 200, 83, 0.15); }
+        body.light-theme .table { color: #333; }
+        body.light-theme .footer { background: #fff; border-color: rgba(0, 200, 83, 0.15); }
+        body.light-theme .command-palette, body.light-theme .settings-modal { background: #fff; color: #333; }
+        body.light-theme .command-input { color: #333; }
+        body.light-theme .command-item:hover, body.light-theme .command-item.selected { background: rgba(0, 200, 83, 0.1); }
+        body.light-theme .settings-select { background: #f0f0f0; color: #333; border-color: #ddd; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -93,6 +214,92 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="settings-overlay" id="settingsModal">
+        <div class="settings-modal">
+            <div class="settings-header">
+                <h5><i class="bi bi-gear me-2"></i>Settings</h5>
+                <button class="settings-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-section">
+                    <h6>Appearance</h6>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Dark Theme</div>
+                            <div class="setting-desc">Use dark color scheme</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="darkThemeToggle" checked onchange="toggleTheme()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Compact View</div>
+                            <div class="setting-desc">Reduce spacing in dashboards</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="compactViewToggle" onchange="toggleCompactView()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h6>Notifications</h6>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Show Alerts</div>
+                            <div class="setting-desc">Display security alert notifications</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="showAlertsToggle" checked onchange="saveSettings()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Auto-refresh</div>
+                            <div class="setting-desc">Automatically refresh dashboard data</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoRefreshToggle" onchange="saveSettings()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h6>Defaults</h6>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Default View</div>
+                            <div class="setting-desc">Starting page when opening the app</div>
+                        </div>
+                        <select class="settings-select" id="defaultViewSelect" onchange="saveSettings()">
+                            <option value="dashboard">Dashboard</option>
+                            <option value="chat">AI CISO Chat</option>
+                            <option value="home">Home</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <div>
+                            <div class="setting-label">Chart Animation</div>
+                            <div class="setting-desc">Animate charts on load</div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chartAnimationToggle" checked onchange="saveSettings()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-footer">
+                <button class="btn btn-outline-light btn-sm" onclick="resetSettings()">Reset to Defaults</button>
+                <button class="btn btn-primary btn-sm" onclick="closeSettings()">Done</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -108,6 +315,10 @@
             { icon: 'bi-file-earmark-spreadsheet', title: 'Export CSV', desc: 'Download data as CSV', action: () => { closePalette(); if(typeof exportCSV === 'function') exportCSV(); }, shortcut: 'E C' },
             { icon: 'bi-file-earmark-richtext', title: 'Export Report', desc: 'Generate security report', action: () => { closePalette(); if(typeof exportHTML === 'function') exportHTML(); }, shortcut: 'E R' },
             { icon: 'bi-arrow-clockwise', title: 'Refresh Dashboard', desc: 'Reload current data', action: () => { closePalette(); if(typeof refreshDashboard === 'function') refreshDashboard(); else window.location.reload(); }, shortcut: 'R' },
+        ]},
+        { group: 'Settings', items: [
+            { icon: 'bi-gear', title: 'Open Settings', desc: 'Customize your preferences', action: () => { closePalette(); openSettings(); }, shortcut: 'Ctrl+,' },
+            { icon: 'bi-moon', title: 'Toggle Theme', desc: 'Switch dark/light mode', action: () => { closePalette(); toggleTheme(); }, shortcut: 'T' },
         ]},
         { group: 'Help', items: [
             { icon: 'bi-keyboard', title: 'Keyboard Shortcuts', desc: 'View all shortcuts', action: () => showShortcuts(), shortcut: '?' },
@@ -180,6 +391,91 @@
 
     document.getElementById('commandInput').addEventListener('input', (e) => { selectedIndex = 0; renderCommands(e.target.value); });
     document.getElementById('commandPalette').addEventListener('click', (e) => { if (e.target.id === 'commandPalette') closePalette(); });
+
+    // Settings Management
+    const SETTINGS_KEY = 'security-intelligence-settings';
+    const defaultSettings = {
+        darkTheme: true,
+        compactView: false,
+        showAlerts: true,
+        autoRefresh: false,
+        defaultView: 'dashboard',
+        chartAnimation: true
+    };
+
+    function loadSettings() {
+        const saved = localStorage.getItem(SETTINGS_KEY);
+        const settings = saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+        applySettings(settings);
+        return settings;
+    }
+
+    function applySettings(settings) {
+        document.body.classList.toggle('light-theme', !settings.darkTheme);
+        document.getElementById('darkThemeToggle').checked = settings.darkTheme;
+        document.body.classList.toggle('compact-view', settings.compactView);
+        document.getElementById('compactViewToggle').checked = settings.compactView;
+        document.getElementById('showAlertsToggle').checked = settings.showAlerts;
+        document.getElementById('autoRefreshToggle').checked = settings.autoRefresh;
+        document.getElementById('chartAnimationToggle').checked = settings.chartAnimation;
+        document.getElementById('defaultViewSelect').value = settings.defaultView;
+        window.appSettings = settings;
+    }
+
+    function saveSettings() {
+        const settings = {
+            darkTheme: document.getElementById('darkThemeToggle').checked,
+            compactView: document.getElementById('compactViewToggle').checked,
+            showAlerts: document.getElementById('showAlertsToggle').checked,
+            autoRefresh: document.getElementById('autoRefreshToggle').checked,
+            defaultView: document.getElementById('defaultViewSelect').value,
+            chartAnimation: document.getElementById('chartAnimationToggle').checked
+        };
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        window.appSettings = settings;
+    }
+
+    function resetSettings() {
+        localStorage.removeItem(SETTINGS_KEY);
+        applySettings(defaultSettings);
+        saveSettings();
+    }
+
+    function toggleTheme() {
+        const toggle = document.getElementById('darkThemeToggle');
+        toggle.checked = !toggle.checked;
+        document.body.classList.toggle('light-theme', !toggle.checked);
+        saveSettings();
+    }
+
+    function toggleCompactView() {
+        document.body.classList.toggle('compact-view', document.getElementById('compactViewToggle').checked);
+        saveSettings();
+    }
+
+    function openSettings() {
+        document.getElementById('settingsModal').classList.add('show');
+    }
+
+    function closeSettings() {
+        document.getElementById('settingsModal').classList.remove('show');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+            e.preventDefault();
+            openSettings();
+        }
+        if (e.key === 'Escape' && document.getElementById('settingsModal').classList.contains('show')) {
+            closeSettings();
+        }
+    });
+
+    document.getElementById('settingsModal').addEventListener('click', (e) => {
+        if (e.target.id === 'settingsModal') closeSettings();
+    });
+
+    document.addEventListener('DOMContentLoaded', loadSettings);
     </script>
 
     {% block extra_js %}{% endblock %}

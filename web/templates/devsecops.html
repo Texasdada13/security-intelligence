@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}DevSecOps - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .phase-card { border-radius: 12px; padding: 16px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); transition: all 0.15s; position: relative; overflow: hidden; }
+    .phase-card::after { content:''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; }
+    .phase-card.level-0::after { background: #f44336; }
+    .phase-card.level-1::after { background: #ff9800; }
+    .phase-card.level-2::after { background: #ffeb3b; }
+    .phase-card.level-3::after { background: #4caf50; }
+    .phase-card.level-4::after { background: #00c853; }
+    .pipeline-scan { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid; }
+    .pipeline-scan.pass { border-left-color: #4caf50; }
+    .pipeline-scan.fail { border-left-color: #f44336; }
+    .gate-card { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); }
+    .maturity-level { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .tool-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; margin: 3px; background: rgba(0,200,83,0.1); color: var(--accent-color); border: 1px solid rgba(0,200,83,0.2); }
+    .tool-badge.inactive { background: rgba(255,255,255,0.05); color: #8b949e; border-color: rgba(255,255,255,0.1); }
+    .activity-item { padding: 6px 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-infinity me-2" style="color:var(--accent-color);"></i>DevSecOps & Secure SDLC</h2>
+            <p style="color:#8b949e;">CI/CD security pipeline integration and secure development lifecycle maturity</p>
+        </div>
+        <button class="btn btn-outline-light btn-sm" onclick="exportDevSecOps()"><i class="bi bi-download me-1"></i>Export Report</button>
+    </div>
+
+    <!-- Overall Score -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col"><div class="stat-card"><div class="stat-value">62%</div><small style="color:#8b949e;">Overall Maturity</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#ff9800;">Level 2</div><small style="color:#8b949e;">Maturity Level</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#4caf50;">4/6</div><small style="color:#8b949e;">Tool Categories</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#f44336;">2</div><small style="color:#8b949e;">Failing Scans</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#1e88e5;">3</div><small style="color:#8b949e;">Security Gates</small></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SDLC Phases -->
+    <div class="row g-3 mb-4" id="phases"></div>
+
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Pipeline Scans -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-gear me-2"></i>Pipeline Security Scans</h5></div>
+                <div class="card-body" id="pipelineScans"></div>
+            </div>
+
+            <!-- Tool Coverage -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-tools me-2"></i>Security Tool Coverage</h5></div>
+                <div class="card-body" id="toolCoverage"></div>
+            </div>
+
+            <!-- Maturity Chart -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">SDLC Security Maturity</h5></div>
+                <div class="card-body"><canvas id="maturityChart" height="280"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Security Gates -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-shield-lock me-2"></i>Security Gates</h5></div>
+                <div class="card-body" id="securityGates"></div>
+            </div>
+
+            <!-- Findings Trend -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Findings Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="200"></canvas></div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-lightbulb me-2"></i>Recommendations</h5></div>
+                <div class="card-body" id="recommendations"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const PHASES = [
+    { id:'requirements', name:'Requirements', level:1, label:'Initial', score:25, activities:['Security requirements gathering'], missing:['Threat modeling','Secure design review','Privacy impact assessment'] },
+    { id:'development', name:'Development', level:2, label:'Managed', score:50, activities:['Secure coding standards','Pre-commit hooks'], missing:['IDE security plugins','Peer code review with security focus'] },
+    { id:'build', name:'Build & CI', level:3, label:'Defined', score:75, activities:['SAST (Static Analysis)','SCA (Dependency Scanning)','Secrets detection'], missing:['Container image scanning'] },
+    { id:'test', name:'Testing', level:2, label:'Managed', score:50, activities:['DAST (Dynamic Analysis)','API security testing'], missing:['Penetration testing','Security regression tests'] },
+    { id:'deploy', name:'Deployment', level:2, label:'Managed', score:50, activities:['Infrastructure as Code scanning','Security gate approval'], missing:['Configuration validation','Deployment signing'] },
+    { id:'operate', name:'Operations', level:1, label:'Initial', score:25, activities:['Security monitoring & alerting'], missing:['Runtime application protection (RASP)','Vulnerability management','Incident response'] },
+];
+
+const PIPELINE_SCANS = [
+    { tool:'Semgrep', type:'SAST', findings:12, critical:0, high:3, medium:5, low:4, status:'pass', lastRun:'2 hours ago' },
+    { tool:'Snyk', type:'SCA', findings:8, critical:1, high:2, medium:3, low:2, status:'fail', lastRun:'2 hours ago' },
+    { tool:'GitLeaks', type:'Secrets', findings:0, critical:0, high:0, medium:0, low:0, status:'pass', lastRun:'2 hours ago' },
+    { tool:'OWASP ZAP', type:'DAST', findings:15, critical:2, high:4, medium:6, low:3, status:'fail', lastRun:'Daily (1am)' },
+    { tool:'Checkov', type:'IaC', findings:6, critical:0, high:1, medium:3, low:2, status:'pass', lastRun:'On PR merge' },
+    { tool:'Trivy', type:'Container', findings:3, critical:0, high:0, medium:2, low:1, status:'pass', lastRun:'On build' },
+];
+
+const TOOL_CATEGORIES = {
+    sast: { name:'SAST', active:['Semgrep','CodeQL'], available:['SonarQube','Checkmarx','Bandit','ESLint Security'], covered:true },
+    dast: { name:'DAST', active:['OWASP ZAP'], available:['Burp Suite','Nuclei','Nikto'], covered:true },
+    sca: { name:'SCA', active:['Snyk','npm audit'], available:['Dependabot','OWASP Dependency-Check','Safety'], covered:true },
+    container: { name:'Container', active:['Trivy'], available:['Grype','Docker Scout','Snyk Container'], covered:true },
+    iac: { name:'IaC', active:[], available:['Checkov','tfsec','KICS','Terrascan'], covered:false },
+    secrets: { name:'Secrets', active:['GitLeaks'], available:['TruffleHog','detect-secrets','git-secrets'], covered:true },
+};
+
+const SECURITY_GATES = [
+    { name:'Pre-Commit Checks', phase:'Development', criteria:'Zero secrets detected', status:'passing', blocking:true },
+    { name:'CI Security Scan', phase:'Build & CI', criteria:'No critical SAST/SCA findings', status:'failing', blocking:true },
+    { name:'Pre-Deploy Review', phase:'Deployment', criteria:'No high/critical open findings', status:'failing', blocking:true },
+];
+
+const RECOMMENDATIONS = [
+    { title:'Fix Failing Security Gates', priority:'critical', description:'2 security gates failing. Address critical SCA and DAST findings.' },
+    { title:'Add Container Scanning to CI', priority:'high', description:'Container images not scanned in pipeline. Add Trivy to CI.' },
+    { title:'Implement IaC Scanning', priority:'high', description:'No IaC scanning tools deployed. Add Checkov or tfsec.' },
+    { title:'Improve Requirements Phase', priority:'medium', description:'Add threat modeling and secure design reviews to SDLC.' },
+    { title:'Add Security Regression Tests', priority:'medium', description:'Create automated security test suite for CI pipeline.' },
+];
+
+// Phases
+const levelColors = { 0:'#f44336', 1:'#ff9800', 2:'#ffeb3b', 3:'#4caf50', 4:'#00c853' };
+document.getElementById('phases').innerHTML = PHASES.map(p => `
+    <div class="col-md-2">
+        <div class="phase-card level-${p.level}">
+            <div style="color:#e6edf3;font-weight:600;font-size:0.9rem;">${p.name}</div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <span class="maturity-level" style="background:${levelColors[p.level]}22;color:${levelColors[p.level]};">L${p.level} ${p.label}</span>
+                <span style="color:${levelColors[p.level]};font-weight:700;">${p.score}%</span>
+            </div>
+        </div>
+    </div>
+`).join('');
+
+// Pipeline scans
+document.getElementById('pipelineScans').innerHTML = PIPELINE_SCANS.map(s => `
+    <div class="pipeline-scan ${s.status}">
+        <div class="d-flex justify-content-between align-items-center">
+            <div><strong style="color:#e6edf3;">${s.tool}</strong> <span class="badge bg-secondary">${s.type}</span></div>
+            <div class="d-flex gap-2 align-items-center">
+                <small style="color:#8b949e;">${s.lastRun}</small>
+                <span class="badge ${s.status==='pass'?'bg-success':'bg-danger'}">${s.status.toUpperCase()}</span>
+            </div>
+        </div>
+        <div class="mt-1">
+            ${s.critical?`<span class="badge badge-critical me-1">${s.critical} Crit</span>`:''}
+            ${s.high?`<span class="badge badge-high me-1">${s.high} High</span>`:''}
+            ${s.medium?`<span class="badge badge-medium me-1">${s.medium} Med</span>`:''}
+            ${s.low?`<span class="badge badge-low me-1">${s.low} Low</span>`:''}
+            ${s.findings===0?'<small style="color:#4caf50;">No findings</small>':''}
+        </div>
+    </div>
+`).join('');
+
+// Tool coverage
+document.getElementById('toolCoverage').innerHTML = Object.entries(TOOL_CATEGORIES).map(([key, cat]) => `
+    <div style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex justify-content-between mb-2">
+            <strong style="color:#e6edf3;">${cat.name}</strong>
+            <span class="badge ${cat.covered?'bg-success':'bg-danger'}">${cat.covered?'Covered':'Not Covered'}</span>
+        </div>
+        <div>${cat.active.map(t => `<span class="tool-badge">${t}</span>`).join('')}${cat.available.filter(t=>!cat.active.includes(t)).map(t=>`<span class="tool-badge inactive">${t}</span>`).join('')}</div>
+    </div>
+`).join('');
+
+// Security gates
+document.getElementById('securityGates').innerHTML = SECURITY_GATES.map(g => {
+    const color = g.status==='passing'?'#4caf50':'#f44336';
+    const icon = g.status==='passing'?'bi-check-circle':'bi-x-circle';
+    return `<div class="gate-card">
+        <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${g.name}</strong><i class="bi ${icon}" style="color:${color};font-size:1.2rem;"></i></div>
+        <small style="color:#8b949e;">${g.phase} &middot; ${g.criteria}</small><br>
+        <span class="badge ${g.blocking?'bg-danger':'bg-secondary'} mt-1">${g.blocking?'Blocking':'Non-blocking'}</span>
+    </div>`;
+}).join('');
+
+// Recommendations
+document.getElementById('recommendations').innerHTML = RECOMMENDATIONS.map(r => {
+    const color = r.priority==='critical'?'#f44336':r.priority==='high'?'#ff9800':'#ffeb3b';
+    return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${r.title}</strong><span class="badge" style="background:${color}22;color:${color};">${r.priority}</span></div>
+        <small style="color:#8b949e;">${r.description}</small>
+    </div>`;
+}).join('');
+
+// Maturity radar chart
+new Chart(document.getElementById('maturityChart'), {
+    type: 'radar',
+    data: {
+        labels: PHASES.map(p => p.name),
+        datasets: [
+            { label:'Current', data:PHASES.map(p=>p.score), backgroundColor:'rgba(0,200,83,0.2)', borderColor:'#00c853', pointBackgroundColor:'#00c853' },
+            { label:'Target', data:[75,75,100,75,75,75], backgroundColor:'rgba(30,136,229,0.1)', borderColor:'#1e88e5', pointBackgroundColor:'#1e88e5', borderDash:[5,5] }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { r:{min:0,max:100,grid:{color:'rgba(255,255,255,0.1)'},angleLines:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e',backdropColor:'transparent',stepSize:25},pointLabels:{color:'#8b949e'}} },
+        plugins: { legend:{position:'bottom',labels:{color:'#8b949e'}} }
+    }
+});
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+        datasets: [
+            { label:'Critical', data:[8,6,5,4,3,3], borderColor:'#f44336', tension:0.3, fill:false },
+            { label:'High', data:[20,18,16,14,12,10], borderColor:'#ff9800', tension:0.3, fill:false },
+            { label:'Medium', data:[35,32,30,28,22,19], borderColor:'#ffeb3b', tension:0.3, fill:false },
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { y:{grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}}, x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}} },
+        plugins: { legend:{position:'bottom',labels:{color:'#8b949e'}} }
+    }
+});
+
+function exportDevSecOps() { alert('Generating DevSecOps Maturity Report...'); }
+</script>
+{% endblock %}

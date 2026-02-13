@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Audit Readiness - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .readiness-ring { width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 16px; }
+    .evidence-row { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid; }
+    .evidence-row.collected { border-left-color: #4caf50; }
+    .evidence-row.pending { border-left-color: #ff9800; }
+    .evidence-row.stale { border-left-color: #ffeb3b; }
+    .evidence-row.missing { border-left-color: #f44336; }
+    .source-card { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); }
+    .control-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .export-card { padding: 16px; border-radius: 10px; background: rgba(0,200,83,0.05); border: 1px solid rgba(0,200,83,0.2); cursor: pointer; transition: all 0.15s; }
+    .export-card:hover { background: rgba(0,200,83,0.1); transform: translateY(-2px); }
+    .progress-ring { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-clipboard2-check me-2" style="color:var(--accent-color);"></i>Audit Readiness</h2>
+            <p style="color:#8b949e;">Continuous audit preparation with evidence tracking and one-click export</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" onclick="exportAuditPackage()"><i class="bi bi-box-seam me-1"></i>One-Click Export</button>
+            <button class="btn btn-outline-light btn-sm" onclick="refreshEvidence()"><i class="bi bi-arrow-clockwise me-1"></i>Refresh Evidence</button>
+        </div>
+    </div>
+
+    <!-- Readiness Score -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-4 align-items-center">
+                <div class="col-md-3 text-center">
+                    <div class="readiness-ring" style="background: conic-gradient(#00c853 0% 78%, rgba(255,255,255,0.1) 78% 100%);">
+                        <div style="width:100px;height:100px;border-radius:50%;background:var(--card-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                            <div style="font-size:2rem;font-weight:700;color:#00c853;">78%</div>
+                            <small style="color:#8b949e;">Grade: B+</small>
+                        </div>
+                    </div>
+                    <div style="color:#e6edf3;font-weight:600;">Audit Readiness Score</div>
+                </div>
+                <div class="col-md-9">
+                    <div class="row g-3 text-center">
+                        <div class="col"><div class="stat-card"><div style="font-size:1.8rem;font-weight:700;color:#4caf50;">24</div><small style="color:#8b949e;">Controls Covered</small></div></div>
+                        <div class="col"><div class="stat-card"><div style="font-size:1.8rem;font-weight:700;color:#ff9800;">5</div><small style="color:#8b949e;">Partial Evidence</small></div></div>
+                        <div class="col"><div class="stat-card"><div style="font-size:1.8rem;font-weight:700;color:#f44336;">4</div><small style="color:#8b949e;">No Evidence</small></div></div>
+                        <div class="col"><div class="stat-card"><div style="font-size:1.8rem;font-weight:700;color:#1e88e5;">85%</div><small style="color:#8b949e;">Evidence Fresh</small></div></div>
+                        <div class="col"><div class="stat-card"><div style="font-size:1.8rem;font-weight:700;color:#9c27b0;">62%</div><small style="color:#8b949e;">Auto-Collected</small></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Framework Selector -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card h-100" style="cursor:pointer;border-color:var(--accent-color);" onclick="selectAuditFramework('iso27001')">
+                <div class="card-body text-center">
+                    <h5 class="text-white">ISO 27001:2022</h5>
+                    <p style="color:#8b949e;">93 Annex A Controls</p>
+                    <div class="progress-ring"><div class="progress-fill" style="width:82%;background:#00c853;"></div></div>
+                    <small style="color:#4caf50;">82% Ready</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100" style="cursor:pointer;" onclick="selectAuditFramework('soc2')">
+                <div class="card-body text-center">
+                    <h5 class="text-white">SOC 2 Type II</h5>
+                    <p style="color:#8b949e;">33 Trust Service Criteria</p>
+                    <div class="progress-ring"><div class="progress-fill" style="width:74%;background:#1e88e5;"></div></div>
+                    <small style="color:#1e88e5;">74% Ready</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Evidence Status -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between">
+                    <h5 class="mb-0 text-white"><i class="bi bi-folder-check me-2"></i>Evidence Collection Status</h5>
+                    <select class="form-select form-select-sm" style="width:auto;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#e6edf3;" onchange="filterEvidence(this.value)">
+                        <option value="all">All Evidence</option>
+                        <option value="collected">Collected</option>
+                        <option value="pending">Pending</option>
+                        <option value="stale">Stale</option>
+                        <option value="missing">Missing</option>
+                    </select>
+                </div>
+                <div class="card-body" id="evidenceList"></div>
+            </div>
+
+            <!-- Control-Evidence Map -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Control-to-Evidence Mapping</h5></div>
+                <div class="card-body"><canvas id="controlChart" height="280"></canvas></div>
+            </div>
+
+            <!-- Audit Export -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-box-seam me-2"></i>Audit Export Package</h5></div>
+                <div class="card-body">
+                    <div class="row g-3" id="exportItems"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Evidence Sources -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-plug me-2"></i>Evidence Sources</h5></div>
+                <div class="card-body" id="evidenceSources"></div>
+            </div>
+
+            <!-- Evidence Freshness -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Evidence Freshness</h5></div>
+                <div class="card-body"><canvas id="freshnessChart" height="200"></canvas></div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-lightbulb me-2"></i>Recommendations</h5></div>
+                <div class="card-body" id="recommendations"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const EVIDENCE = [
+    { control:'A.5.1', controlName:'Information Security Policies', source:'Confluence', sourceType:'automated', status:'collected', collectedAt:'2025-01-15', title:'ISMS Policy Document v3.2' },
+    { control:'A.5.2', controlName:'Information Security Roles', source:'Okta', sourceType:'automated', status:'collected', collectedAt:'2025-01-20', title:'Role assignments from Okta' },
+    { control:'A.5.7', controlName:'Threat Intelligence', source:'manual', sourceType:'manual', status:'collected', collectedAt:'2025-01-10', title:'Threat intelligence report Q4 2024' },
+    { control:'A.5.23', controlName:'Cloud Services Security', source:'aws', sourceType:'automated', status:'pending', collectedAt:null, title:'AWS Config compliance report' },
+    { control:'A.5.24', controlName:'Incident Management Planning', source:'jira', sourceType:'automated', status:'collected', collectedAt:'2025-01-18', title:'Incident response procedure in Jira' },
+    { control:'A.5.30', controlName:'ICT Readiness for BC', source:'manual', sourceType:'manual', status:'stale', collectedAt:'2024-06-15', title:'DR test results - needs refresh' },
+    { control:'A.6.3', controlName:'Security Awareness Training', source:'manual', sourceType:'manual', status:'collected', collectedAt:'2025-01-05', title:'Training completion certificates' },
+    { control:'A.8.1', controlName:'User Endpoint Devices', source:'manual', sourceType:'manual', status:'pending', collectedAt:null, title:'MDM compliance report' },
+    { control:'A.8.9', controlName:'Configuration Management', source:'aws', sourceType:'automated', status:'collected', collectedAt:'2025-01-19', title:'AWS Config rules report' },
+    { control:'A.8.12', controlName:'Data Leakage Prevention', source:'manual', sourceType:'manual', status:'missing', collectedAt:null, title:'DLP policy and configuration evidence' },
+    { control:'A.8.25', controlName:'Secure Development Lifecycle', source:'github', sourceType:'automated', status:'collected', collectedAt:'2025-01-20', title:'GitHub branch protection and PR evidence' },
+    { control:'A.8.28', controlName:'Secure Coding', source:'github', sourceType:'automated', status:'collected', collectedAt:'2025-01-20', title:'SAST scan results from CI pipeline' },
+    { control:'CC6.1', controlName:'Logical Access Controls', source:'okta', sourceType:'automated', status:'collected', collectedAt:'2025-01-20', title:'Okta access policies and MFA enforcement' },
+    { control:'CC6.3', controlName:'Role-Based Access', source:'okta', sourceType:'automated', status:'collected', collectedAt:'2025-01-20', title:'Role assignments and access reviews' },
+    { control:'CC7.2', controlName:'System Monitoring', source:'aws', sourceType:'automated', status:'collected', collectedAt:'2025-01-19', title:'CloudWatch monitoring configuration' },
+    { control:'CC8.1', controlName:'Change Management', source:'github', sourceType:'automated', status:'stale', collectedAt:'2024-09-20', title:'Change management process evidence' },
+];
+
+const EVIDENCE_SOURCES = [
+    { key:'aws', name:'AWS CloudTrail / Config', type:'Automated', status:'connected', evidenceCount:4 },
+    { key:'github', name:'GitHub / GitLab', type:'Automated', status:'connected', evidenceCount:3 },
+    { key:'jira', name:'Jira / Project Management', type:'Automated', status:'connected', evidenceCount:1 },
+    { key:'okta', name:'Okta / Identity Provider', type:'Automated', status:'connected', evidenceCount:3 },
+    { key:'slack', name:'Slack / Communication', type:'Semi-Auto', status:'not_connected', evidenceCount:0 },
+    { key:'manual', name:'Manual Upload', type:'Manual', status:'active', evidenceCount:5 },
+];
+
+const EXPORT_ITEMS = [
+    { name:'Control Matrix (Excel)', icon:'bi-file-earmark-spreadsheet', size:'2.4 MB', status:'ready' },
+    { name:'Evidence Index', icon:'bi-list-columns', size:'1.1 MB', status:'ready' },
+    { name:'Gap Summary Report', icon:'bi-file-earmark-text', size:'850 KB', status:'ready' },
+    { name:'Risk Register Extract', icon:'bi-exclamation-triangle', size:'640 KB', status:'ready' },
+    { name:'Policy Document Links', icon:'bi-link-45deg', size:'320 KB', status:'ready' },
+    { name:'Auditor Workbook', icon:'bi-journal-check', size:'3.2 MB', status:'generating' },
+];
+
+const RECOMMENDATIONS = [
+    { title:'Collect Missing Evidence', priority:'critical', description:'4 controls have no evidence. Priority: A.5.23, A.8.1, A.8.12' },
+    { title:'Refresh Stale Evidence', priority:'high', description:'2 evidence items are stale (>90 days old). Re-collect for A.5.30, CC8.1' },
+    { title:'Connect Slack Integration', priority:'medium', description:'Automate evidence collection from Slack for awareness and incident channels' },
+    { title:'Schedule Audit', priority:'medium', description:'Readiness at 78%. On track for Q2 certification audit.' },
+];
+
+function renderEvidence(filter) {
+    const filtered = filter === 'all' ? EVIDENCE : EVIDENCE.filter(e => e.status === filter);
+    document.getElementById('evidenceList').innerHTML = filtered.map(e => {
+        const statusColors = { collected:'#4caf50', pending:'#ff9800', stale:'#ffeb3b', missing:'#f44336' };
+        const statusIcon = { collected:'bi-check-circle', pending:'bi-clock', stale:'bi-exclamation-circle', missing:'bi-x-circle' };
+        const sourceIcon = { aws:'bi-cloud', github:'bi-github', jira:'bi-kanban', okta:'bi-shield', slack:'bi-chat', manual:'bi-upload' };
+        return `<div class="evidence-row ${e.status}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong style="color:#e6edf3;">${e.control}</strong> <span style="color:#c9d1d9;">${e.controlName}</span>
+                    <div><small style="color:#8b949e;"><i class="bi ${sourceIcon[e.source]||'bi-folder'} me-1"></i>${e.title}</small></div>
+                </div>
+                <div class="text-end">
+                    <span class="badge" style="background:${statusColors[e.status]}22;color:${statusColors[e.status]};"><i class="bi ${statusIcon[e.status]} me-1"></i>${e.status}</span>
+                    ${e.collectedAt ? `<div><small style="color:#8b949e;">${e.collectedAt}</small></div>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterEvidence(val) { renderEvidence(val); }
+
+// Evidence sources
+document.getElementById('evidenceSources').innerHTML = EVIDENCE_SOURCES.map(s => {
+    const statusColor = s.status==='connected'?'#4caf50':s.status==='active'?'#1e88e5':'#8b949e';
+    const statusIcon = s.status==='connected'?'bi-check-circle':s.status==='active'?'bi-circle-fill':'bi-circle';
+    return `<div class="source-card">
+        <div class="d-flex justify-content-between"><strong style="color:#e6edf3;">${s.name}</strong><i class="bi ${statusIcon}" style="color:${statusColor};"></i></div>
+        <small style="color:#8b949e;">${s.type} &middot; ${s.evidenceCount} items</small>
+    </div>`;
+}).join('');
+
+// Export items
+document.getElementById('exportItems').innerHTML = EXPORT_ITEMS.map(e => `
+    <div class="col-md-4">
+        <div class="export-card text-center">
+            <i class="bi ${e.icon}" style="font-size:2rem;color:var(--accent-color);"></i>
+            <div style="color:#e6edf3;font-weight:500;margin-top:8px;">${e.name}</div>
+            <small style="color:#8b949e;">${e.size}</small>
+            <div class="mt-1"><span class="badge ${e.status==='ready'?'bg-success':'bg-warning'}">${e.status}</span></div>
+        </div>
+    </div>
+`).join('');
+
+// Recommendations
+document.getElementById('recommendations').innerHTML = RECOMMENDATIONS.map(r => {
+    const color = r.priority==='critical'?'#f44336':r.priority==='high'?'#ff9800':'#ffeb3b';
+    return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${r.title}</strong><span class="badge" style="background:${color}22;color:${color};">${r.priority}</span></div>
+        <small style="color:#8b949e;">${r.description}</small>
+    </div>`;
+}).join('');
+
+// Control chart
+const controlGroups = ['A.5 Org','A.6 People','A.7 Physical','A.8 Tech','CC1-5','CC6-9'];
+new Chart(document.getElementById('controlChart'), {
+    type: 'bar',
+    data: {
+        labels: controlGroups,
+        datasets: [
+            { label:'Covered', data:[8,2,3,7,4,3], backgroundColor:'#4caf50' },
+            { label:'Partial', data:[2,0,1,1,0,1], backgroundColor:'#ff9800' },
+            { label:'Missing', data:[1,0,0,2,0,1], backgroundColor:'#f44336' }
+        ]
+    },
+    options: {
+        responsive:true,
+        scales: { x:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}}, y:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.1)'}} },
+        plugins: { legend:{position:'bottom',labels:{color:'#8b949e'}} }
+    }
+});
+
+// Freshness donut
+new Chart(document.getElementById('freshnessChart'), {
+    type: 'doughnut',
+    data: { labels:['Fresh (<30 days)','Aging (30-90 days)','Stale (>90 days)','Missing'], datasets:[{data:[10,3,2,1],backgroundColor:['#4caf50','#ff9800','#ffeb3b','#f44336']}] },
+    options: { responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+function exportAuditPackage() { alert('Generating One-Click Audit Package...\n\nContents:\n- Control Matrix (Excel)\n- Evidence Index\n- Gap Summary Report\n- Risk Register Extract\n- Policy Document Links\n- Auditor Workbook\n\nEstimated size: 8.5 MB'); }
+function refreshEvidence() { alert('Refreshing evidence from all connected sources...\n\nAWS CloudTrail/Config: Syncing...\nGitHub: Syncing...\nJira: Syncing...\nOkta: Syncing...'); }
+function selectAuditFramework(fw) { alert('Switching to ' + (fw === 'iso27001' ? 'ISO 27001' : 'SOC 2') + ' audit view'); }
+
+renderEvidence('all');
+</script>
+{% endblock %}

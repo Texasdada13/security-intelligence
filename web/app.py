@@ -91,6 +91,30 @@ def create_app():
     def security_architecture():
         return render_template('security_architecture.html')
 
+    @app.route('/iso-compliance')
+    def iso_compliance():
+        return render_template('iso_compliance.html')
+
+    @app.route('/pentesting')
+    def pentesting():
+        return render_template('pentesting.html')
+
+    @app.route('/code-review')
+    def code_review():
+        return render_template('code_review.html')
+
+    @app.route('/network-assessment')
+    def network_assessment():
+        return render_template('network_assessment.html')
+
+    @app.route('/devsecops')
+    def devsecops():
+        return render_template('devsecops.html')
+
+    @app.route('/audit-readiness')
+    def audit_readiness():
+        return render_template('audit_readiness.html')
+
     @app.route('/chat')
     def chat_page():
         modes = {mode.value: desc for mode, desc in [

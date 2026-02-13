@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Network Assessment - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .assessment-tab { padding: 12px 20px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.15s; text-align: center; }
+    .assessment-tab:hover { border-color: var(--accent-color); }
+    .assessment-tab.active { border-color: var(--accent-color); background: rgba(0,200,83,0.1); }
+    .finding-row { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid; }
+    .finding-row.Critical { border-left-color: #f44336; }
+    .finding-row.High { border-left-color: #ff9800; }
+    .finding-row.Medium { border-left-color: #ffeb3b; }
+    .finding-row.Low { border-left-color: #4caf50; }
+    .benchmark-card { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 8px; }
+    .hardening-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+    .hardening-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .zone-card { padding: 12px; border-radius: 8px; text-align: center; border: 1px dashed rgba(255,255,255,0.2); }
+    .zone-card.secure { border-color: #4caf50; border-style: solid; }
+    .zone-card.warning { border-color: #ff9800; border-style: solid; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-hdd-network me-2" style="color:var(--accent-color);"></i>Network & Infrastructure Assessment</h2>
+            <p style="color:#8b949e;">Attack surface illumination across on-prem, hybrid, and cloud environments</p>
+        </div>
+        <button class="btn btn-outline-light btn-sm" onclick="exportAssessment()"><i class="bi bi-download me-1"></i>Export Report</button>
+    </div>
+
+    <!-- Assessment Type Tabs -->
+    <div class="row g-3 mb-4">
+        {% for icon, name, desc in [('bi-globe', 'External', 'Internet-facing'), ('bi-house', 'Internal', 'Internal network'), ('bi-wifi', 'Wireless', 'WiFi security'), ('bi-cloud', 'Cloud', 'AWS/Azure/GCP'), ('bi-diagram-3', 'Segmentation', 'Network zones')] %}
+        <div class="col">
+            <div class="assessment-tab {% if loop.first %}active{% endif %}">
+                <i class="bi {{ icon }}" style="font-size:1.3rem;color:var(--accent-color);"></i>
+                <div style="color:#e6edf3;font-size:0.9rem;">{{ name }}</div>
+                <small style="color:#8b949e;">{{ desc }}</small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Attack Surface Summary -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-white"><i class="bi bi-radar me-2"></i>Attack Surface Summary</h5>
+            <span class="badge bg-warning" style="font-size:0.9rem;">Risk: Medium</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col"><div class="stat-card"><div class="stat-value">12</div><small style="color:#8b949e;">External IPs</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#ff9800;">34</div><small style="color:#8b949e;">Open Ports</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#f44336;">3</div><small style="color:#8b949e;">SSL/TLS Issues</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#1e88e5;">8</div><small style="color:#8b949e;">Exposed Services</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#4caf50;">72%</div><small style="color:#8b949e;">Hardening Score</small></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Findings -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Network Findings</h5></div>
+                <div class="card-body" id="findingsList"></div>
+            </div>
+
+            <!-- Hardening Benchmarks -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-shield-check me-2"></i>Hardening Benchmarks (CIS)</h5></div>
+                <div class="card-body" id="benchmarks"></div>
+            </div>
+
+            <!-- Network Segmentation -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-diagram-3 me-2"></i>Network Segmentation Review</h5></div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3" id="zones"></div>
+                    <canvas id="segmentChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Severity Distribution -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Finding Severity</h5></div>
+                <div class="card-body"><canvas id="severityChart" height="200"></canvas></div>
+            </div>
+
+            <!-- Exposed Services -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-server me-2"></i>Exposed Services</h5></div>
+                <div class="card-body" id="services"></div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-lightbulb me-2"></i>Recommendations</h5></div>
+                <div class="card-body" id="recommendations"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const FINDINGS = [
+    { id:'NET-001', title:'Unpatched Apache Server (CVE-2024-XXXX)', severity:'Critical', cvss:9.8, category:'Vulnerability', systems:['web-01.example.com'], remediation:'Update Apache to latest version' },
+    { id:'NET-002', title:'Default SNMP Community String', severity:'Critical', cvss:9.1, category:'Configuration', systems:['switch-core-01','router-gw-01'], remediation:'Change default community strings' },
+    { id:'NET-003', title:'Expired SSL Certificate on Public API', severity:'High', cvss:7.5, category:'SSL/TLS', systems:['api.example.com'], remediation:'Renew SSL certificate immediately' },
+    { id:'NET-004', title:'SSH Allowing Password Authentication', severity:'High', cvss:7.2, category:'Configuration', systems:['Multiple servers'], remediation:'Disable password auth, enforce key-based' },
+    { id:'NET-005', title:'Unrestricted RDP Access from Internet', severity:'Critical', cvss:9.3, category:'Access Control', systems:['admin-01.example.com'], remediation:'Restrict RDP to VPN/bastion only' },
+    { id:'NET-006', title:'DNS Zone Transfer Enabled', severity:'Medium', cvss:5.3, category:'DNS', systems:['ns1.example.com'], remediation:'Restrict zone transfers to authorized servers' },
+    { id:'NET-007', title:'TLS 1.0/1.1 Still Enabled', severity:'Medium', cvss:4.8, category:'SSL/TLS', systems:['*.example.com'], remediation:'Disable legacy TLS, enforce 1.2+' },
+    { id:'NET-008', title:'Missing Network Segmentation for PCI Data', severity:'High', cvss:7.0, category:'Segmentation', systems:['pci-subnet'], remediation:'Implement VLAN segmentation for cardholder data' },
+    { id:'NET-009', title:'Unnecessary Services Running (FTP, Telnet)', severity:'Medium', cvss:5.0, category:'Configuration', systems:['legacy-01','legacy-02'], remediation:'Disable FTP/Telnet, use SFTP/SSH' },
+    { id:'NET-010', title:'Missing Firmware Update on Firewall', severity:'Low', cvss:3.2, category:'Patching', systems:['fw-perimeter-01'], remediation:'Schedule maintenance window for firmware update' },
+];
+
+const BENCHMARKS = [
+    { name:'Windows Server 2022', source:'CIS Benchmark', total:120, passed:92, score:76.7 },
+    { name:'Ubuntu 22.04 LTS', source:'CIS Benchmark', total:95, passed:78, score:82.1 },
+    { name:'Cisco IOS', source:'CIS / Vendor', total:60, passed:42, score:70.0 },
+    { name:'AWS Foundations', source:'CIS AWS v2.0', total:80, passed:64, score:80.0 },
+    { name:'Palo Alto Firewall', source:'CIS / NIST', total:40, passed:32, score:80.0 },
+    { name:'VPN Gateway', source:'NIST SP 800-77', total:25, passed:20, score:80.0 },
+];
+
+const ZONES = [
+    { name:'DMZ', status:'secure', devices:6, violations:0 },
+    { name:'Internal', status:'warning', devices:45, violations:2 },
+    { name:'Management', status:'secure', devices:8, violations:0 },
+    { name:'PCI', status:'warning', devices:12, violations:1 },
+    { name:'Guest WiFi', status:'secure', devices:3, violations:0 },
+];
+
+const SERVICES = [
+    { port:443, service:'HTTPS', host:'web-01', status:'secure' },
+    { port:443, service:'API Gateway', host:'api-gw-01', status:'secure' },
+    { port:22, service:'SSH', host:'bastion-01', status:'secure' },
+    { port:3389, service:'RDP', host:'admin-01', status:'exposed' },
+    { port:25, service:'SMTP', host:'mail-01', status:'secure' },
+    { port:53, service:'DNS', host:'ns1', status:'warning' },
+    { port:161, service:'SNMP', host:'switch-core', status:'exposed' },
+    { port:21, service:'FTP', host:'legacy-01', status:'exposed' },
+];
+
+const RECOMMENDATIONS = [
+    { title:'Block RDP from Internet', priority:'critical', description:'Restrict RDP access to VPN/bastion host only' },
+    { title:'Update SNMP Configuration', priority:'critical', description:'Change default community strings on all network devices' },
+    { title:'Implement PCI Segmentation', priority:'high', description:'Create dedicated VLAN and ACLs for cardholder data' },
+    { title:'Disable Legacy Protocols', priority:'high', description:'Remove FTP, Telnet, and TLS 1.0/1.1' },
+    { title:'Automate Patch Management', priority:'medium', description:'Deploy WSUS/satellite for regular patching cycles' },
+];
+
+// Findings
+document.getElementById('findingsList').innerHTML = FINDINGS.map(f => {
+    const colors = { Critical:'#f44336', High:'#ff9800', Medium:'#ffeb3b', Low:'#4caf50' };
+    return `<div class="finding-row ${f.severity}">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <div><strong style="color:#e6edf3;">${f.id}</strong> <span style="color:#c9d1d9;">${f.title}</span></div>
+            <div class="d-flex gap-2"><span class="badge" style="background:${colors[f.severity]};">${f.severity}</span><span class="badge bg-secondary">CVSS ${f.cvss}</span></div>
+        </div>
+        <small style="color:#8b949e;">${f.category} &middot; ${f.systems.join(', ')}</small><br>
+        <small style="color:#4caf50;"><i class="bi bi-arrow-right me-1"></i>${f.remediation}</small>
+    </div>`;
+}).join('');
+
+// Benchmarks
+document.getElementById('benchmarks').innerHTML = BENCHMARKS.map(b => {
+    const color = b.score >= 80 ? '#4caf50' : b.score >= 60 ? '#ff9800' : '#f44336';
+    return `<div class="benchmark-card">
+        <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${b.name}</strong><span style="color:${color};font-weight:700;">${b.score.toFixed(1)}%</span></div>
+        <small style="color:#8b949e;">${b.source} &middot; ${b.passed}/${b.total} controls passed</small>
+        <div class="hardening-bar mt-2"><div class="hardening-fill" style="width:${b.score}%;background:${color};"></div></div>
+    </div>`;
+}).join('');
+
+// Zones
+document.getElementById('zones').innerHTML = ZONES.map(z =>
+    `<div class="col"><div class="zone-card ${z.status}"><i class="bi bi-hdd-network" style="font-size:1.3rem;color:${z.status==='secure'?'#4caf50':'#ff9800'};"></i><div style="color:#e6edf3;font-weight:500;">${z.name}</div><small style="color:#8b949e;">${z.devices} devices</small>${z.violations?`<br><small style="color:#ff9800;">${z.violations} violations</small>`:''}</div></div>`
+).join('');
+
+// Segmentation chart
+new Chart(document.getElementById('segmentChart'), {
+    type: 'bar',
+    data: {
+        labels: ZONES.map(z => z.name),
+        datasets: [
+            { label:'Devices', data:ZONES.map(z=>z.devices), backgroundColor:'#1e88e5' },
+            { label:'Violations', data:ZONES.map(z=>z.violations), backgroundColor:'#f44336' }
+        ]
+    },
+    options: { responsive:true, scales:{x:{ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.1)'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Severity donut
+new Chart(document.getElementById('severityChart'), {
+    type: 'doughnut',
+    data: { labels:['Critical','High','Medium','Low'], datasets:[{data:[3,3,3,1],backgroundColor:['#f44336','#ff9800','#ffeb3b','#4caf50']}] },
+    options: { responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Services
+document.getElementById('services').innerHTML = SERVICES.map(s => {
+    const color = s.status==='secure'?'#4caf50':s.status==='warning'?'#ff9800':'#f44336';
+    const icon = s.status==='secure'?'bi-check-circle':s.status==='warning'?'bi-exclamation-circle':'bi-x-circle';
+    return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex justify-content-between"><span style="color:#e6edf3;"><i class="bi ${icon} me-1" style="color:${color};"></i>:${s.port} ${s.service}</span><small style="color:#8b949e;">${s.host}</small></div>
+    </div>`;
+}).join('');
+
+// Recommendations
+document.getElementById('recommendations').innerHTML = RECOMMENDATIONS.map(r => {
+    const color = r.priority==='critical'?'#f44336':r.priority==='high'?'#ff9800':'#ffeb3b';
+    return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${r.title}</strong><span class="badge" style="background:${color}22;color:${color};">${r.priority}</span></div>
+        <small style="color:#8b949e;">${r.description}</small>
+    </div>`;
+}).join('');
+
+function exportAssessment() { alert('Generating Network Assessment Report...'); }
+</script>
+{% endblock %}

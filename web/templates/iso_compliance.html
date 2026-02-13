@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}ISO Compliance Hub - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .framework-tab { padding: 16px 24px; border-radius: 12px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.2s; text-align: center; }
+    .framework-tab:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,200,83,0.15); }
+    .framework-tab.active { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(0,200,83,0.3); }
+    .score-ring { width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; }
+    .clause-row { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid transparent; transition: background 0.15s; }
+    .clause-row:hover { background: rgba(255,255,255,0.06); }
+    .clause-row.compliant { border-left-color: #4caf50; }
+    .clause-row.partial { border-left-color: #ff9800; }
+    .clause-row.gap { border-left-color: #f44336; }
+    .synergy-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; margin: 2px; }
+    .roadmap-phase { padding: 16px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 12px; border-left: 4px solid; }
+    .maturity-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+    .maturity-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-award me-2" style="color:var(--accent-color);"></i>ISO Compliance Hub</h2>
+            <p style="color:#8b949e;">Integrated management system: ISO 27001, ISO 42001 & ISO 22301</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-light btn-sm" onclick="exportAuditPack()"><i class="bi bi-download me-1"></i>Export Audit Pack</button>
+        </div>
+    </div>
+
+    <!-- Framework Tabs -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="framework-tab active" onclick="selectFramework('iso27001')">
+                <div class="score-ring mx-auto mb-2" style="background:rgba(0,200,83,0.15);color:#00c853;">82%</div>
+                <h6 style="color:#e6edf3;">ISO 27001:2022</h6>
+                <small style="color:#8b949e;">Information Security</small><br>
+                <span class="badge bg-success mt-1">77/93 Controls</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="framework-tab" onclick="selectFramework('iso42001')">
+                <div class="score-ring mx-auto mb-2" style="background:rgba(156,39,176,0.15);color:#9c27b0;">68%</div>
+                <h6 style="color:#e6edf3;">ISO 42001:2023</h6>
+                <small style="color:#8b949e;">AI Management System</small><br>
+                <span class="badge bg-warning mt-1">26/38 Controls</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="framework-tab" onclick="selectFramework('iso22301')">
+                <div class="score-ring mx-auto mb-2" style="background:rgba(30,136,229,0.15);color:#1e88e5;">75%</div>
+                <h6 style="color:#e6edf3;">ISO 22301:2019</h6>
+                <small style="color:#8b949e;">Business Continuity</small><br>
+                <span class="badge bg-info mt-1">30/40 Controls</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Integrated Score -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-white"><i class="bi bi-graph-up me-2"></i>Integrated Compliance Score</h5>
+            <span class="badge bg-success" style="font-size:1rem;">75% Overall</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-3 text-center">
+                    <div class="stat-card"><div class="stat-value" style="color:#4caf50;">133</div><small style="color:#8b949e;">Controls Compliant</small></div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="stat-card"><div class="stat-value" style="color:#ff9800;">22</div><small style="color:#8b949e;">Partially Implemented</small></div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="stat-card"><div class="stat-value" style="color:#f44336;">16</div><small style="color:#8b949e;">Gaps Identified</small></div>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="stat-card"><div class="stat-value" style="color:#1e88e5;">12</div><small style="color:#8b949e;">Cross-Standard Synergies</small></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Clause Breakdown -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white" id="frameworkTitle">ISO 27001:2022 - Annex A Controls</h5></div>
+                <div class="card-body">
+                    <canvas id="clauseChart" height="280"></canvas>
+                </div>
+            </div>
+
+            <!-- Control Details -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between">
+                    <h5 class="mb-0 text-white">Control Details</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success active" onclick="filterControls('all')">All</button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="filterControls('partial')">Partial</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="filterControls('gap')">Gaps</button>
+                    </div>
+                </div>
+                <div class="card-body" id="controlDetails"></div>
+            </div>
+
+            <!-- Synergies -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-link-45deg me-2"></i>Cross-Standard Synergies</h5></div>
+                <div class="card-body" id="synergies"></div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Certification Readiness -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-check2-circle me-2"></i>Certification Readiness</h5></div>
+                <div class="card-body" id="certReadiness"></div>
+            </div>
+
+            <!-- Compliance Trend -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Compliance Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="200"></canvas></div>
+            </div>
+
+            <!-- Roadmap -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-signpost-split me-2"></i>Integrated Roadmap</h5></div>
+                <div class="card-body" id="roadmap"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const FRAMEWORKS = {
+    iso27001: {
+        name: 'ISO 27001:2022',
+        subtitle: 'Annex A Controls',
+        groups: [
+            { id: 'A.5', name: 'Organizational Controls', total: 37, compliant: 30, partial: 4, gap: 3 },
+            { id: 'A.6', name: 'People Controls', total: 8, compliant: 7, partial: 1, gap: 0 },
+            { id: 'A.7', name: 'Physical Controls', total: 14, compliant: 12, partial: 1, gap: 1 },
+            { id: 'A.8', name: 'Technological Controls', total: 34, compliant: 28, partial: 4, gap: 2 },
+        ],
+        controls: [
+            { id:'A.5.1', name:'Policies for information security', status:'compliant' },
+            { id:'A.5.2', name:'Information security roles', status:'compliant' },
+            { id:'A.5.3', name:'Segregation of duties', status:'partial', note:'Needs formal documentation' },
+            { id:'A.5.7', name:'Threat intelligence', status:'compliant' },
+            { id:'A.5.23', name:'Information security for cloud services', status:'gap', note:'Cloud security policy missing' },
+            { id:'A.5.30', name:'ICT readiness for business continuity', status:'partial', note:'DR testing incomplete' },
+            { id:'A.8.1', name:'User endpoint devices', status:'compliant' },
+            { id:'A.8.9', name:'Configuration management', status:'partial', note:'Hardening baselines needed' },
+            { id:'A.8.12', name:'Data leakage prevention', status:'gap', note:'DLP not implemented' },
+            { id:'A.8.25', name:'Secure development lifecycle', status:'compliant' },
+            { id:'A.8.28', name:'Secure coding', status:'compliant' },
+        ]
+    },
+    iso42001: {
+        name: 'ISO 42001:2023',
+        subtitle: 'AI Management System Controls',
+        groups: [
+            { id: '5', name: 'Leadership & Governance', total: 8, compliant: 6, partial: 1, gap: 1 },
+            { id: '6', name: 'Planning', total: 6, compliant: 4, partial: 1, gap: 1 },
+            { id: '7', name: 'Support & Resources', total: 8, compliant: 5, partial: 2, gap: 1 },
+            { id: '8', name: 'AI System Lifecycle', total: 10, compliant: 7, partial: 2, gap: 1 },
+            { id: '9', name: 'Performance Evaluation', total: 6, compliant: 4, partial: 1, gap: 1 },
+        ],
+        controls: [
+            { id:'5.1', name:'AI governance policy', status:'compliant' },
+            { id:'5.3', name:'AI ethics framework', status:'partial', note:'Ethics board not established' },
+            { id:'6.1', name:'AI risk assessment', status:'compliant' },
+            { id:'6.4', name:'AI impact assessment', status:'gap', note:'AIIA process not defined' },
+            { id:'7.2', name:'AI competence & training', status:'partial', note:'Training program incomplete' },
+            { id:'8.2', name:'AI data management', status:'compliant' },
+            { id:'8.4', name:'AI model validation', status:'compliant' },
+            { id:'8.6', name:'AI bias monitoring', status:'partial', note:'Automated bias detection needed' },
+            { id:'9.1', name:'AI performance monitoring', status:'compliant' },
+            { id:'9.3', name:'AI system auditing', status:'gap', note:'Audit procedures not defined' },
+        ]
+    },
+    iso22301: {
+        name: 'ISO 22301:2019',
+        subtitle: 'Business Continuity Controls',
+        groups: [
+            { id: '4', name: 'Context of Organization', total: 4, compliant: 3, partial: 1, gap: 0 },
+            { id: '5', name: 'Leadership', total: 4, compliant: 4, partial: 0, gap: 0 },
+            { id: '6', name: 'Planning', total: 6, compliant: 4, partial: 1, gap: 1 },
+            { id: '7', name: 'Support', total: 6, compliant: 5, partial: 0, gap: 1 },
+            { id: '8', name: 'Operation', total: 12, compliant: 8, partial: 3, gap: 1 },
+            { id: '9', name: 'Performance Evaluation', total: 4, compliant: 3, partial: 1, gap: 0 },
+            { id: '10', name: 'Improvement', total: 4, compliant: 3, partial: 0, gap: 1 },
+        ],
+        controls: [
+            { id:'4.1', name:'Understanding the organization', status:'compliant' },
+            { id:'6.1', name:'Actions to address risks', status:'compliant' },
+            { id:'6.3', name:'Business impact analysis', status:'partial', note:'BIA needs annual refresh' },
+            { id:'8.2', name:'Business continuity strategies', status:'compliant' },
+            { id:'8.3', name:'Business continuity plans', status:'compliant' },
+            { id:'8.5', name:'Exercising and testing', status:'partial', note:'Only tabletop done, no full test' },
+            { id:'8.6', name:'Evaluation of BC documentation', status:'gap', note:'Documentation review overdue' },
+            { id:'9.1', name:'Monitoring and measurement', status:'compliant' },
+            { id:'10.2', name:'Continual improvement', status:'gap', note:'Improvement register not maintained' },
+        ]
+    }
+};
+
+const SYNERGIES = [
+    { area:'Risk Management', standards:['27001 A.5.7','42001 6.1','22301 6.1'], description:'Shared risk assessment methodology across all three standards' },
+    { area:'Incident Management', standards:['27001 A.5.24-28','22301 8.4'], description:'Unified incident and crisis management procedures' },
+    { area:'Business Continuity', standards:['27001 A.5.30','22301 8.2-8.5'], description:'ICT readiness aligned with business continuity strategies' },
+    { area:'Training & Awareness', standards:['27001 A.6.3','42001 7.2','22301 7.2'], description:'Combined security, AI ethics, and BC awareness training' },
+    { area:'Document Control', standards:['27001 A.5.1','42001 7.5','22301 7.5'], description:'Integrated management system documentation' },
+    { area:'Internal Audit', standards:['27001 9.2','42001 9.2','22301 9.2'], description:'Combined audit program covering all three standards' },
+];
+
+const CERT_READINESS = {
+    iso27001: { stage1: 90, stage2: 78, nextAudit: '2025-Q3', status: 'On Track' },
+    iso42001: { stage1: 72, stage2: 55, nextAudit: '2025-Q4', status: 'In Progress' },
+    iso22301: { stage1: 85, stage2: 70, nextAudit: '2025-Q3', status: 'On Track' },
+};
+
+const ROADMAP = [
+    { phase: 'Phase 1: Foundation (Month 1-2)', items: ['Complete gap analysis for all 3 standards', 'Establish integrated policy framework', 'Define control ownership'], color: '#f44336' },
+    { phase: 'Phase 2: Implementation (Month 3-5)', items: ['Implement missing controls', 'Deploy AI governance framework (42001)', 'Update BC plans and test'], color: '#ff9800' },
+    { phase: 'Phase 3: Audit Prep (Month 6)', items: ['Internal audit (integrated)', 'Management review', 'Stage 1 certification audit'], color: '#4caf50' },
+];
+
+let currentFramework = 'iso27001';
+
+function selectFramework(fw) {
+    currentFramework = fw;
+    document.querySelectorAll('.framework-tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    renderAll();
+}
+
+function renderAll() {
+    const fw = FRAMEWORKS[currentFramework];
+    document.getElementById('frameworkTitle').textContent = fw.name + ' - ' + fw.subtitle;
+    renderClauseChart(fw);
+    renderControls(fw.controls, 'all');
+    renderSynergies();
+    renderCertReadiness();
+    renderRoadmap();
+}
+
+function renderClauseChart(fw) {
+    const ctx = document.getElementById('clauseChart');
+    if (window.clauseChartInstance) window.clauseChartInstance.destroy();
+    window.clauseChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: fw.groups.map(g => g.id + ' ' + g.name),
+            datasets: [
+                { label: 'Compliant', data: fw.groups.map(g => g.compliant), backgroundColor: '#4caf50' },
+                { label: 'Partial', data: fw.groups.map(g => g.partial), backgroundColor: '#ff9800' },
+                { label: 'Gap', data: fw.groups.map(g => g.gap), backgroundColor: '#f44336' }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: { x:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}}, y:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.1)'}} },
+            plugins: { legend:{position:'bottom',labels:{color:'#8b949e'}} }
+        }
+    });
+}
+
+function renderControls(controls, filter) {
+    const filtered = filter === 'all' ? controls : controls.filter(c => c.status === filter);
+    document.getElementById('controlDetails').innerHTML = filtered.map(c => {
+        const icon = c.status==='compliant'?'bi-check-circle text-success':c.status==='partial'?'bi-exclamation-circle text-warning':'bi-x-circle text-danger';
+        const badge = c.status==='compliant'?'bg-success':c.status==='partial'?'bg-warning':'bg-danger';
+        return `<div class="clause-row ${c.status}">
+            <div class="d-flex justify-content-between align-items-center">
+                <div><i class="bi ${icon} me-2"></i><strong style="color:#e6edf3;">${c.id}</strong> <span style="color:#c9d1d9;">${c.name}</span></div>
+                <span class="badge ${badge}">${c.status}</span>
+            </div>
+            ${c.note ? `<small style="color:#ff9800;margin-left:28px;"><i class="bi bi-info-circle me-1"></i>${c.note}</small>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function filterControls(filter) {
+    renderControls(FRAMEWORKS[currentFramework].controls, filter);
+}
+
+function renderSynergies() {
+    const colors = ['#00c853','#1e88e5','#9c27b0','#ff9800','#e91e63','#00bcd4'];
+    document.getElementById('synergies').innerHTML = SYNERGIES.map((s, i) => `
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(255,255,255,0.03);margin-bottom:8px;border-left:3px solid ${colors[i%colors.length]};">
+            <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${s.area}</strong></div>
+            <div class="mb-1">${s.standards.map(st => `<span class="synergy-badge" style="background:${colors[i%colors.length]}22;color:${colors[i%colors.length]};">${st}</span>`).join('')}</div>
+            <small style="color:#8b949e;">${s.description}</small>
+        </div>
+    `).join('');
+}
+
+function renderCertReadiness() {
+    const fws = ['iso27001','iso42001','iso22301'];
+    const names = { iso27001:'ISO 27001', iso42001:'ISO 42001', iso22301:'ISO 22301' };
+    const colors = { iso27001:'#00c853', iso42001:'#9c27b0', iso22301:'#1e88e5' };
+    document.getElementById('certReadiness').innerHTML = fws.map(f => {
+        const c = CERT_READINESS[f];
+        return `<div class="mb-3">
+            <div class="d-flex justify-content-between mb-1"><strong style="color:${colors[f]};">${names[f]}</strong><span class="badge ${c.status==='On Track'?'bg-success':'bg-warning'}">${c.status}</span></div>
+            <div class="mb-1"><small style="color:#8b949e;">Stage 1 Readiness</small></div>
+            <div class="maturity-bar mb-2"><div class="maturity-fill" style="width:${c.stage1}%;background:${colors[f]};"></div></div>
+            <div class="mb-1"><small style="color:#8b949e;">Stage 2 Readiness</small></div>
+            <div class="maturity-bar mb-2"><div class="maturity-fill" style="width:${c.stage2}%;background:${colors[f]};opacity:0.7;"></div></div>
+            <small style="color:#8b949e;">Next Audit: ${c.nextAudit}</small>
+        </div>`;
+    }).join('<hr style="border-color:rgba(255,255,255,0.1);">');
+}
+
+function renderRoadmap() {
+    document.getElementById('roadmap').innerHTML = ROADMAP.map(r =>
+        `<div class="roadmap-phase" style="border-left-color:${r.color};">
+            <div class="fw-bold mb-1" style="color:${r.color};">${r.phase}</div>
+            ${r.items.map(i => `<div style="color:#c9d1d9;padding:3px 0;"><i class="bi bi-arrow-right me-2" style="color:${r.color};"></i>${i}</div>`).join('')}
+        </div>`
+    ).join('');
+}
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+        datasets: [
+            { label:'27001', data:[68,72,75,78,80,82], borderColor:'#00c853', tension:0.3, fill:false },
+            { label:'42001', data:[40,48,52,58,63,68], borderColor:'#9c27b0', tension:0.3, fill:false },
+            { label:'22301', data:[60,63,66,70,73,75], borderColor:'#1e88e5', tension:0.3, fill:false }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { y:{beginAtZero:false,grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}}, x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}} },
+        plugins: { legend:{position:'bottom',labels:{color:'#8b949e'}} }
+    }
+});
+
+function exportAuditPack() { alert('Generating integrated audit package for ISO 27001 + 42001 + 22301...\n\nIncludes:\n- Statement of Applicability\n- Control Matrix\n- Gap Analysis Report\n- Evidence Index\n- Synergy Map'); }
+
+renderAll();
+</script>
+{% endblock %}

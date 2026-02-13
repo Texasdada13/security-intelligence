@@ -282,3 +282,177 @@ class UploadedFile(db.Model):
             'detected_metrics': self.detected_metrics,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+class ISOAssessment(db.Model):
+    __tablename__ = 'iso_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    framework = db.Column(db.String(50))
+    overall_score = db.Column(db.Float)
+    grade = db.Column(db.String(5))
+    controls_compliant = db.Column(db.Integer)
+    controls_partial = db.Column(db.Integer)
+    controls_gap = db.Column(db.Integer)
+    total_controls = db.Column(db.Integer)
+    clause_scores = db.Column(db.JSON)
+    gap_analysis = db.Column(db.JSON)
+    certification_readiness = db.Column(db.JSON)
+    synergies = db.Column(db.JSON)
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'framework': self.framework,
+            'overall_score': self.overall_score, 'grade': self.grade,
+            'controls_compliant': self.controls_compliant,
+            'controls_partial': self.controls_partial,
+            'controls_gap': self.controls_gap,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }
+
+
+class PentestEngagement(db.Model):
+    __tablename__ = 'pentest_engagements'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    engagement_name = db.Column(db.String(200))
+    pentest_type = db.Column(db.String(50))
+    status = db.Column(db.String(30), default='planned')
+    overall_score = db.Column(db.Float)
+    grade = db.Column(db.String(5))
+    findings_count = db.Column(db.Integer)
+    critical_count = db.Column(db.Integer)
+    high_count = db.Column(db.Integer)
+    medium_count = db.Column(db.Integer)
+    low_count = db.Column(db.Integer)
+    findings_detail = db.Column(db.JSON)
+    owasp_coverage = db.Column(db.JSON)
+    remediation_progress = db.Column(db.JSON)
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'engagement_name': self.engagement_name,
+            'pentest_type': self.pentest_type, 'status': self.status,
+            'overall_score': self.overall_score, 'grade': self.grade,
+            'findings_count': self.findings_count,
+            'critical_count': self.critical_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class CodeReviewAssessment(db.Model):
+    __tablename__ = 'code_review_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    project_name = db.Column(db.String(200))
+    languages = db.Column(db.JSON)
+    overall_score = db.Column(db.Float)
+    grade = db.Column(db.String(5))
+    files_reviewed = db.Column(db.Integer)
+    total_findings = db.Column(db.Integer)
+    critical_count = db.Column(db.Integer)
+    high_count = db.Column(db.Integer)
+    medium_count = db.Column(db.Integer)
+    low_count = db.Column(db.Integer)
+    findings_by_category = db.Column(db.JSON)
+    guardrails_status = db.Column(db.JSON)
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'project_name': self.project_name,
+            'languages': self.languages,
+            'overall_score': self.overall_score, 'grade': self.grade,
+            'files_reviewed': self.files_reviewed,
+            'total_findings': self.total_findings,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }
+
+
+class NetworkAssessment(db.Model):
+    __tablename__ = 'network_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    assessment_type = db.Column(db.String(50))
+    overall_score = db.Column(db.Float)
+    grade = db.Column(db.String(5))
+    external_ips = db.Column(db.Integer)
+    open_ports = db.Column(db.Integer)
+    ssl_tls_issues = db.Column(db.Integer)
+    findings_count = db.Column(db.Integer)
+    critical_count = db.Column(db.Integer)
+    high_count = db.Column(db.Integer)
+    hardening_scores = db.Column(db.JSON)
+    segmentation_review = db.Column(db.JSON)
+    findings_detail = db.Column(db.JSON)
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'assessment_type': self.assessment_type,
+            'overall_score': self.overall_score, 'grade': self.grade,
+            'external_ips': self.external_ips, 'open_ports': self.open_ports,
+            'findings_count': self.findings_count,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }
+
+
+class DevSecOpsAssessment(db.Model):
+    __tablename__ = 'devsecops_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    overall_score = db.Column(db.Float)
+    grade = db.Column(db.String(5))
+    maturity_level = db.Column(db.Integer)
+    pipeline_scans = db.Column(db.JSON)
+    security_gates = db.Column(db.JSON)
+    sdlc_maturity = db.Column(db.JSON)
+    tool_coverage = db.Column(db.JSON)
+    recommendations = db.Column(db.JSON)
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'overall_score': self.overall_score, 'grade': self.grade,
+            'maturity_level': self.maturity_level,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }
+
+
+class AuditReadinessAssessment(db.Model):
+    __tablename__ = 'audit_readiness_assessments'
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=True)
+    framework = db.Column(db.String(50))
+    readiness_score = db.Column(db.Float)
+    grade = db.Column(db.String(5))
+    controls_covered = db.Column(db.Integer)
+    controls_partial = db.Column(db.Integer)
+    controls_no_evidence = db.Column(db.Integer)
+    total_controls = db.Column(db.Integer)
+    evidence_freshness_pct = db.Column(db.Float)
+    automated_collection_pct = db.Column(db.Float)
+    evidence_summary = db.Column(db.JSON)
+    audit_export = db.Column(db.JSON)
+    recommendations = db.Column(db.JSON)
+    assessed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'framework': self.framework,
+            'readiness_score': self.readiness_score, 'grade': self.grade,
+            'controls_covered': self.controls_covered,
+            'evidence_freshness_pct': self.evidence_freshness_pct,
+            'assessed_at': self.assessed_at.isoformat() if self.assessed_at else None
+        }

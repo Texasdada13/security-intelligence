@@ -195,7 +195,7 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item"><a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Tools</a>
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Assess</a>
                         <ul class="dropdown-menu dropdown-menu-dark">
                             <li><a class="dropdown-item" href="/risk-assessment"><i class="bi bi-exclamation-triangle me-2"></i>Risk Assessment</a></li>
                             <li><a class="dropdown-item" href="/compliance"><i class="bi bi-clipboard-check me-2"></i>Compliance</a></li>
@@ -203,6 +203,17 @@
                             <li><a class="dropdown-item" href="/incidents"><i class="bi bi-lightning me-2"></i>Incident Response</a></li>
                             <li><a class="dropdown-item" href="/threat-intelligence"><i class="bi bi-eye me-2"></i>Threat Intelligence</a></li>
                             <li><a class="dropdown-item" href="/security-architecture"><i class="bi bi-diagram-3 me-2"></i>Security Architecture</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Secure</a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="/iso-compliance"><i class="bi bi-award me-2"></i>ISO Compliance Hub</a></li>
+                            <li><a class="dropdown-item" href="/pentesting"><i class="bi bi-crosshair me-2"></i>Penetration Testing</a></li>
+                            <li><a class="dropdown-item" href="/code-review"><i class="bi bi-code-slash me-2"></i>Secure Code Review</a></li>
+                            <li><a class="dropdown-item" href="/network-assessment"><i class="bi bi-hdd-network me-2"></i>Network Assessment</a></li>
+                            <li><a class="dropdown-item" href="/devsecops"><i class="bi bi-infinity me-2"></i>DevSecOps</a></li>
+                            <li><a class="dropdown-item" href="/audit-readiness"><i class="bi bi-clipboard2-check me-2"></i>Audit Readiness</a></li>
                         </ul>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="/chat"><i class="bi bi-chat-dots me-1"></i>AI CISO</a></li>
@@ -329,6 +340,12 @@
             { icon: 'bi-house', title: 'Go to Home', desc: 'Return to landing page', action: () => window.location.href = '/', shortcut: 'G H' },
             { icon: 'bi-speedometer2', title: 'Go to Dashboard', desc: 'View security dashboard', action: () => window.location.href = '/dashboard', shortcut: 'G D' },
             { icon: 'bi-chat-dots', title: 'Open AI CISO Chat', desc: 'Start a conversation', action: () => window.location.href = '/chat', shortcut: 'G C' },
+            { icon: 'bi-award', title: 'ISO Compliance Hub', desc: 'ISO 27001, 42001 & 22301', action: () => window.location.href = '/iso-compliance' },
+            { icon: 'bi-crosshair', title: 'Penetration Testing', desc: 'Offensive security assessments', action: () => window.location.href = '/pentesting' },
+            { icon: 'bi-code-slash', title: 'Secure Code Review', desc: 'Source code security analysis', action: () => window.location.href = '/code-review' },
+            { icon: 'bi-hdd-network', title: 'Network Assessment', desc: 'Infrastructure security review', action: () => window.location.href = '/network-assessment' },
+            { icon: 'bi-infinity', title: 'DevSecOps', desc: 'Secure SDLC & CI/CD security', action: () => window.location.href = '/devsecops' },
+            { icon: 'bi-clipboard2-check', title: 'Audit Readiness', desc: 'Evidence tracking & audit prep', action: () => window.location.href = '/audit-readiness' },
         ]},
         { group: 'Actions', items: [
             { icon: 'bi-magic', title: 'Load Demo Data', desc: 'Generate sample security data', action: () => { closePalette(); if(typeof loadDemoData === 'function') loadDemoData(); }, shortcut: 'L D' },

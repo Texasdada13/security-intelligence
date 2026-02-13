@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Secure Code Review - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .lang-tab { padding: 10px 18px; border-radius: 8px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.15s; display: inline-block; margin: 4px; }
+    .lang-tab:hover { border-color: var(--accent-color); }
+    .lang-tab.active { border-color: var(--accent-color); background: rgba(0,200,83,0.1); }
+    .vuln-row { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid; }
+    .vuln-row.critical { border-left-color: #f44336; }
+    .vuln-row.high { border-left-color: #ff9800; }
+    .vuln-row.medium { border-left-color: #ffeb3b; }
+    .vuln-row.low { border-left-color: #4caf50; }
+    .code-block { background: #0d1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 16px; font-family: monospace; font-size: 0.85rem; color: #e6edf3; overflow-x: auto; margin: 8px 0; }
+    .guardrail-card { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border: 1px solid rgba(0,200,83,0.1); }
+    .category-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; margin: 2px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-code-slash me-2" style="color:var(--accent-color);"></i>Secure Code Review</h2>
+            <p style="color:#8b949e;">Language-aware source code analysis with automated + manual review</p>
+        </div>
+        <button class="btn btn-outline-light btn-sm" onclick="exportReview()"><i class="bi bi-download me-1"></i>Export Review</button>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col"><div class="stat-card"><div class="stat-value">156</div><small style="color:#8b949e;">Files Reviewed</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#f44336;">8</div><small style="color:#8b949e;">Critical Issues</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#ff9800;">23</div><small style="color:#8b949e;">High Issues</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#ffeb3b;">41</div><small style="color:#8b949e;">Medium Issues</small></div></div>
+                <div class="col"><div class="stat-card"><div style="font-size:2rem;font-weight:700;color:#00c853;">82%</div><small style="color:#8b949e;">Code Quality Score</small></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Language Tabs -->
+    <div class="mb-4" id="langTabs">
+        <span class="lang-tab active" onclick="selectLang('python')"><i class="bi bi-filetype-py me-1"></i>Python <span class="badge bg-secondary">45</span></span>
+        <span class="lang-tab" onclick="selectLang('javascript')"><i class="bi bi-filetype-js me-1"></i>JavaScript <span class="badge bg-secondary">52</span></span>
+        <span class="lang-tab" onclick="selectLang('java')"><i class="bi bi-filetype-java me-1"></i>Java <span class="badge bg-secondary">34</span></span>
+        <span class="lang-tab" onclick="selectLang('go')"><i class="bi bi-code me-1"></i>Go <span class="badge bg-secondary">25</span></span>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Vulnerability Categories -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Vulnerability Categories</h5></div>
+                <div class="card-body"><canvas id="categoryChart" height="250"></canvas></div>
+            </div>
+
+            <!-- Findings -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between">
+                    <h5 class="mb-0 text-white" id="findingsTitle">Code Review Findings - Python</h5>
+                    <select class="form-select form-select-sm" style="width:auto;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#e6edf3;" onchange="filterSeverity(this.value)">
+                        <option value="all">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                    </select>
+                </div>
+                <div class="card-body" id="findingsList"></div>
+            </div>
+
+            <!-- Security Guardrails -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-shield-lock me-2"></i>Security Guardrails</h5></div>
+                <div class="card-body" id="guardrails"></div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Risk by Category -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Risk Distribution</h5></div>
+                <div class="card-body"><canvas id="riskDonut" height="200"></canvas></div>
+            </div>
+
+            <!-- Top Files -->
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-file-earmark-code me-2"></i>Hotspot Files</h5></div>
+                <div class="card-body" id="hotspotFiles"></div>
+            </div>
+
+            <!-- Checklist -->
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-list-check me-2"></i>Review Checklist</h5></div>
+                <div class="card-body" id="checklist"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const FINDINGS = {
+    python: [
+        { id:'CR-001', title:'SQL Injection via string formatting', severity:'critical', file:'app/models/user.py', line:45, category:'Injection', code:'query = f"SELECT * FROM users WHERE name = \'{name}\'"', fix:'Use parameterized queries with SQLAlchemy' },
+        { id:'CR-002', title:'Hardcoded API key in source', severity:'critical', file:'config/settings.py', line:12, category:'Secrets', code:'API_KEY = "sk-abc123..."', fix:'Use environment variables or secrets manager' },
+        { id:'CR-003', title:'Insecure deserialization with pickle', severity:'high', file:'utils/cache.py', line:67, category:'Deserialization', code:'data = pickle.loads(cached_value)', fix:'Use JSON serialization instead of pickle' },
+        { id:'CR-004', title:'Missing input validation on file upload', severity:'high', file:'api/upload.py', line:23, category:'Input Validation', code:'filename = request.files[\'file\'].filename', fix:'Validate file type, size, and sanitize filename' },
+        { id:'CR-005', title:'Debug mode enabled in production config', severity:'medium', file:'config/production.py', line:8, category:'Configuration', code:'DEBUG = True', fix:'Set DEBUG = False for production' },
+        { id:'CR-006', title:'Weak password hashing (MD5)', severity:'high', file:'auth/passwords.py', line:31, category:'Cryptography', code:'hashlib.md5(password.encode())', fix:'Use bcrypt or argon2 for password hashing' },
+    ],
+    javascript: [
+        { id:'CR-101', title:'XSS via innerHTML assignment', severity:'critical', file:'src/components/Comment.jsx', line:34, category:'XSS', code:'el.innerHTML = userComment', fix:'Use textContent or sanitize with DOMPurify' },
+        { id:'CR-102', title:'Prototype pollution in merge utility', severity:'high', file:'src/utils/merge.js', line:12, category:'Injection', code:'target[key] = source[key]', fix:'Check for __proto__ and constructor keys' },
+        { id:'CR-103', title:'eval() with user input', severity:'critical', file:'src/api/filter.js', line:56, category:'Code Injection', code:'eval(filterExpression)', fix:'Use a safe expression parser' },
+        { id:'CR-104', title:'Missing CSRF token validation', severity:'high', file:'src/middleware/auth.js', line:78, category:'CSRF', code:'// TODO: add CSRF check', fix:'Implement CSRF token validation' },
+    ],
+    java: [
+        { id:'CR-201', title:'XML External Entity (XXE) injection', severity:'critical', file:'src/main/java/Parser.java', line:89, category:'XXE', code:'factory.newDocumentBuilder()', fix:'Disable external entities in parser config' },
+        { id:'CR-202', title:'Insecure random number generation', severity:'medium', file:'src/main/java/TokenGen.java', line:23, category:'Cryptography', code:'new Random().nextInt()', fix:'Use SecureRandom instead of Random' },
+        { id:'CR-203', title:'Path traversal in file download', severity:'high', file:'src/main/java/FileController.java', line:45, category:'Path Traversal', code:'new File(basePath + filename)', fix:'Validate and canonicalize file paths' },
+    ],
+    go: [
+        { id:'CR-301', title:'SQL injection in raw query', severity:'critical', file:'handlers/user.go', line:34, category:'Injection', code:'db.Query("SELECT * FROM users WHERE id=" + id)', fix:'Use parameterized queries' },
+        { id:'CR-302', title:'Unvalidated redirect', severity:'medium', file:'handlers/auth.go', line:78, category:'Open Redirect', code:'http.Redirect(w, r, r.URL.Query().Get("next"), 302)', fix:'Validate redirect URL against whitelist' },
+    ]
+};
+
+const CATEGORIES = [
+    { name:'Injection', count:8, color:'#f44336' },
+    { name:'Authentication', count:5, color:'#e91e63' },
+    { name:'Cryptography', count:6, color:'#9c27b0' },
+    { name:'Access Control', count:4, color:'#673ab7' },
+    { name:'XSS', count:7, color:'#ff9800' },
+    { name:'Configuration', count:9, color:'#ff5722' },
+    { name:'Input Validation', count:6, color:'#ffeb3b' },
+    { name:'Secrets', count:3, color:'#f44336' },
+    { name:'Deserialization', count:2, color:'#795548' },
+    { name:'Logging', count:4, color:'#607d8b' },
+];
+
+const GUARDRAILS = [
+    { name:'Pre-commit Secret Scanner', tool:'GitLeaks / TruffleHog', status:'active', description:'Blocks commits containing secrets, API keys, or credentials' },
+    { name:'SAST Pipeline Gate', tool:'Semgrep + CodeQL', status:'active', description:'Static analysis runs on every PR, blocks merge on critical findings' },
+    { name:'Dependency Audit', tool:'Snyk / npm audit', status:'active', description:'Checks dependencies for known vulnerabilities on every build' },
+    { name:'Code Review Checklist', tool:'Custom + OWASP', status:'partial', description:'Security-focused review checklist for manual code reviews' },
+    { name:'IDE Security Plugin', tool:'SonarLint', status:'not_configured', description:'Real-time security feedback as developers write code' },
+];
+
+const HOTSPOT_FILES = [
+    { file:'app/models/user.py', issues:4, risk:'critical' },
+    { file:'src/components/Comment.jsx', issues:3, risk:'critical' },
+    { file:'api/upload.py', issues:3, risk:'high' },
+    { file:'config/settings.py', issues:2, risk:'critical' },
+    { file:'utils/cache.py', issues:2, risk:'high' },
+];
+
+const CHECKLIST = [
+    { item:'Input validation on all user inputs', done:true },
+    { item:'Output encoding for XSS prevention', done:true },
+    { item:'Parameterized queries for SQL', done:false },
+    { item:'Authentication & session management', done:true },
+    { item:'Authorization checks on all endpoints', done:false },
+    { item:'Secure cryptographic implementations', done:false },
+    { item:'Error handling (no sensitive data leaks)', done:true },
+    { item:'Logging (security events captured)', done:true },
+    { item:'Dependency vulnerability check', done:true },
+    { item:'Secrets management review', done:false },
+];
+
+let currentLang = 'python';
+
+function selectLang(lang) {
+    currentLang = lang;
+    document.querySelectorAll('.lang-tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    renderFindings('all');
+}
+
+function renderFindings(severity) {
+    const findings = severity === 'all' ? FINDINGS[currentLang] : FINDINGS[currentLang].filter(f => f.severity === severity);
+    const langNames = { python:'Python', javascript:'JavaScript', java:'Java', go:'Go' };
+    document.getElementById('findingsTitle').textContent = `Code Review Findings - ${langNames[currentLang]}`;
+    document.getElementById('findingsList').innerHTML = findings.map(f => {
+        const colors = { critical:'#f44336', high:'#ff9800', medium:'#ffeb3b', low:'#4caf50' };
+        return `<div class="vuln-row ${f.severity}">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <div><strong style="color:#e6edf3;">${f.id}</strong> <span style="color:#c9d1d9;">${f.title}</span></div>
+                <span class="badge" style="background:${colors[f.severity]};">${f.severity}</span>
+            </div>
+            <small style="color:#8b949e;"><i class="bi bi-file-earmark me-1"></i>${f.file}:${f.line} &middot; ${f.category}</small>
+            <div class="code-block">${f.code}</div>
+            <small style="color:#4caf50;"><i class="bi bi-lightbulb me-1"></i>${f.fix}</small>
+        </div>`;
+    }).join('');
+}
+
+function filterSeverity(val) { renderFindings(val); }
+
+// Category chart
+new Chart(document.getElementById('categoryChart'), {
+    type: 'bar',
+    data: {
+        labels: CATEGORIES.map(c => c.name),
+        datasets: [{ label:'Issues', data: CATEGORIES.map(c => c.count), backgroundColor: CATEGORIES.map(c => c.color) }]
+    },
+    options: {
+        responsive: true,
+        scales: { x:{ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.1)'}} },
+        plugins: { legend:{display:false} }
+    }
+});
+
+// Risk donut
+new Chart(document.getElementById('riskDonut'), {
+    type: 'doughnut',
+    data: { labels:['Critical','High','Medium','Low'], datasets:[{data:[8,23,41,12],backgroundColor:['#f44336','#ff9800','#ffeb3b','#4caf50']}] },
+    options: { responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Guardrails
+document.getElementById('guardrails').innerHTML = GUARDRAILS.map(g => {
+    const statusIcon = g.status==='active'?'bi-check-circle text-success':g.status==='partial'?'bi-exclamation-circle text-warning':'bi-x-circle text-danger';
+    const statusBadge = g.status==='active'?'bg-success':g.status==='partial'?'bg-warning':'bg-danger';
+    return `<div class="guardrail-card">
+        <div class="d-flex justify-content-between"><div><i class="bi ${statusIcon} me-2"></i><strong style="color:#e6edf3;">${g.name}</strong></div><span class="badge ${statusBadge}">${g.status}</span></div>
+        <small style="color:#8b949e;">${g.tool} &middot; ${g.description}</small>
+    </div>`;
+}).join('');
+
+// Hotspot files
+document.getElementById('hotspotFiles').innerHTML = HOTSPOT_FILES.map(f => {
+    const color = f.risk==='critical'?'#f44336':f.risk==='high'?'#ff9800':'#ffeb3b';
+    return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div class="d-flex justify-content-between"><small style="color:#e6edf3;"><i class="bi bi-file-earmark-code me-1" style="color:${color};"></i>${f.file}</small><span class="badge" style="background:${color}22;color:${color};">${f.issues} issues</span></div>
+    </div>`;
+}).join('');
+
+// Checklist
+document.getElementById('checklist').innerHTML = CHECKLIST.map(c =>
+    `<div style="padding:6px 0;"><i class="bi ${c.done?'bi-check-circle text-success':'bi-circle text-secondary'} me-2"></i><span style="color:${c.done?'#8b949e':'#e6edf3'};${c.done?'text-decoration:line-through;':''}">${c.item}</span></div>`
+).join('');
+
+function exportReview() { alert('Generating Secure Code Review Report...'); }
+
+renderFindings('all');
+</script>
+{% endblock %}

@@ -18,7 +18,8 @@
             <p style="color: #8b949e;">Expert cybersecurity guidance without the full-time executive cost</p>
         </div>
     </div>
-    <div class="row g-4 mb-5">
+    <!-- Core Security Tools -->
+    <div class="row g-4 mb-4">
         {% for icon, title, desc, url in [
             ('bi-exclamation-triangle', 'Risk Assessment', 'Comprehensive security risk identification and prioritization with actionable mitigation strategies', '/risk-assessment'),
             ('bi-clipboard-check', 'Compliance Management', 'SOC 2, HIPAA, PCI-DSS, ISO 27001, and NIST framework assessment and gap analysis', '/compliance'),
@@ -32,6 +33,36 @@
                 <div class="card h-100" style="transition: transform 0.15s, box-shadow 0.15s; cursor: pointer;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,200,83,0.2)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
                     <div class="card-body text-center p-4">
                         <div class="feature-icon mx-auto"><i class="bi {{ icon }} text-white"></i></div>
+                        <h5>{{ title }}</h5>
+                        <p style="color: #8b949e;">{{ desc }}</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Advanced Security Services -->
+    <div class="row mb-4">
+        <div class="col-12 text-center mb-3">
+            <h3 class="text-white">Advanced Security Services</h3>
+            <p style="color: #8b949e;">Offensive security, secure engineering, and continuous compliance</p>
+        </div>
+    </div>
+    <div class="row g-4 mb-5">
+        {% for icon, title, desc, url in [
+            ('bi-award', 'ISO Compliance Hub', 'Integrated ISO 27001, 42001 (AI), and 22301 (BC) management with cross-standard synergies', '/iso-compliance'),
+            ('bi-crosshair', 'Penetration Testing', 'Full-stack offensive security: web, mobile, cloud, API, network, and red team assessments', '/pentesting'),
+            ('bi-code-slash', 'Secure Code Review', 'Language-aware source code analysis with automated SAST and manual security review', '/code-review'),
+            ('bi-hdd-network', 'Network Assessment', 'Attack surface illumination, hardening benchmarks, and segmentation validation', '/network-assessment'),
+            ('bi-infinity', 'DevSecOps', 'CI/CD security pipeline integration, SDLC maturity, and security gate management', '/devsecops'),
+            ('bi-clipboard2-check', 'Audit Readiness', 'Continuous audit prep with evidence automation and one-click audit export', '/audit-readiness')
+        ] %}
+        <div class="col-md-4">
+            <a href="{{ url }}" class="text-decoration-none">
+                <div class="card h-100" style="transition: transform 0.15s, box-shadow 0.15s; cursor: pointer; border-color: rgba(30,136,229,0.3);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(30,136,229,0.2)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mx-auto" style="background: var(--secondary-gradient);"><i class="bi {{ icon }} text-white"></i></div>
                         <h5>{{ title }}</h5>
                         <p style="color: #8b949e;">{{ desc }}</p>
                     </div>

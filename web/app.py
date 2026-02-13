@@ -67,6 +67,30 @@ def create_app():
                                compliance=compliance,
                                risk=risk)
 
+    @app.route('/risk-assessment')
+    def risk_assessment():
+        return render_template('risk_assessment.html')
+
+    @app.route('/compliance')
+    def compliance_management():
+        return render_template('compliance.html')
+
+    @app.route('/vulnerabilities')
+    def vulnerability_management():
+        return render_template('vulnerabilities.html')
+
+    @app.route('/incidents')
+    def incident_response():
+        return render_template('incidents.html')
+
+    @app.route('/threat-intelligence')
+    def threat_intelligence():
+        return render_template('threat_intelligence.html')
+
+    @app.route('/security-architecture')
+    def security_architecture():
+        return render_template('security_architecture.html')
+
     @app.route('/chat')
     def chat_page():
         modes = {mode.value: desc for mode, desc in [

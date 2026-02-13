@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Risk Assessment - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .risk-matrix { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 3px; height: 350px; }
+    .risk-cell { border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: transform 0.15s; }
+    .risk-cell:hover { transform: scale(1.05); z-index: 1; }
+    .risk-critical { background: rgba(244,67,54,0.8); color: white; }
+    .risk-high { background: rgba(255,152,0,0.8); color: white; }
+    .risk-medium { background: rgba(255,235,59,0.8); color: #333; }
+    .risk-low { background: rgba(76,175,80,0.8); color: white; }
+    .risk-negligible { background: rgba(76,175,80,0.4); color: #ccc; }
+    .risk-item { padding: 14px 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
+    .risk-score-badge { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
+    .mitigation-step { padding: 10px 14px; border-left: 3px solid var(--accent-color); background: rgba(0,200,83,0.05); border-radius: 0 8px 8px 0; margin-bottom: 8px; color: #c9d1d9; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-exclamation-triangle me-2" style="color:var(--accent-color);"></i>Risk Assessment</h2>
+            <p style="color:#8b949e;">Comprehensive security risk identification and prioritization</p>
+        </div>
+        <select class="form-select" style="width:auto;background:var(--card-bg);color:#c9d1d9;border-color:rgba(0,200,83,0.3);" id="orgSelect" onchange="loadData()">
+            <option value="">Demo Organization</option>
+        </select>
+    </div>
+
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card"><div class="stat-value" id="overallScore">72</div><div style="color:#8b949e;">Overall Risk Score</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-value" style="color:#f44336;" id="criticalCount">4</div><div style="color:#8b949e;">Critical Risks</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-value" style="color:#ff9800;" id="highCount">8</div><div style="color:#8b949e;">High Risks</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-value" style="color:#4caf50;" id="riskTrend">Improving</div><div style="color:#8b949e;">Risk Trend</div></div></div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Risk Matrix -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Risk Heat Map</h5></div>
+                <div class="card-body">
+                    <div class="text-center mb-2"><small style="color:#8b949e;">IMPACT &rarr;</small></div>
+                    <div class="d-flex">
+                        <div class="d-flex flex-column justify-content-between me-2" style="writing-mode:vertical-lr;transform:rotate(180deg);"><small style="color:#8b949e;">LIKELIHOOD &rarr;</small></div>
+                        <div class="risk-matrix flex-fill">
+                            <div class="risk-cell risk-medium">1</div><div class="risk-cell risk-high">2</div><div class="risk-cell risk-critical">3</div><div class="risk-cell risk-critical">4</div><div class="risk-cell risk-critical">5</div>
+                            <div class="risk-cell risk-low">0</div><div class="risk-cell risk-medium">2</div><div class="risk-cell risk-high">3</div><div class="risk-cell risk-critical">3</div><div class="risk-cell risk-critical">2</div>
+                            <div class="risk-cell risk-low">1</div><div class="risk-cell risk-medium">1</div><div class="risk-cell risk-medium">2</div><div class="risk-cell risk-high">1</div><div class="risk-cell risk-high">0</div>
+                            <div class="risk-cell risk-negligible">0</div><div class="risk-cell risk-low">0</div><div class="risk-cell risk-medium">1</div><div class="risk-cell risk-medium">0</div><div class="risk-cell risk-high">0</div>
+                            <div class="risk-cell risk-negligible">0</div><div class="risk-cell risk-negligible">0</div><div class="risk-cell risk-low">0</div><div class="risk-cell risk-low">0</div><div class="risk-cell risk-medium">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Risk by Category -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Risk by Category</h5></div>
+                <div class="card-body"><canvas id="categoryChart" height="300"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        <!-- Top Risks -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Top Risks</h5></div>
+                <div class="card-body" id="topRisks"></div>
+            </div>
+        </div>
+        <!-- Mitigation Priorities -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Risk Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="200"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-shield-check me-2"></i>Priority Actions</h5></div>
+                <div class="card-body" id="priorityActions"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const RISKS = [
+    {title:'Unpatched Critical Vulnerabilities',category:'Technical',score:95,severity:'Critical',desc:'12 critical CVEs unpatched across production servers',mitigation:'Deploy emergency patches within 48 hours'},
+    {title:'No MFA on Admin Accounts',category:'Access Control',score:92,severity:'Critical',desc:'Administrative accounts lack multi-factor authentication',mitigation:'Enable MFA for all privileged accounts immediately'},
+    {title:'Outdated Firewall Rules',category:'Network',score:88,severity:'Critical',desc:'Firewall rules not reviewed in 18 months, 40+ overly permissive rules',mitigation:'Conduct firewall rule audit and remove unnecessary access'},
+    {title:'Missing Data Encryption at Rest',category:'Data Protection',score:85,severity:'Critical',desc:'Customer PII stored without encryption in 3 databases',mitigation:'Implement AES-256 encryption for all sensitive data stores'},
+    {title:'Insufficient Logging',category:'Detection',score:78,severity:'High',desc:'No centralized logging; 60% of systems lack audit trails',mitigation:'Deploy SIEM solution and enable audit logging'},
+    {title:'Third-Party Vendor Risk',category:'Supply Chain',score:75,severity:'High',desc:'15 vendors with network access lack security assessments',mitigation:'Conduct vendor security assessments, implement least privilege'},
+    {title:'No Incident Response Plan',category:'Governance',score:72,severity:'High',desc:'Organization lacks formal IR procedures and playbooks',mitigation:'Develop and test incident response plan within 30 days'},
+    {title:'Weak Password Policy',category:'Access Control',score:68,severity:'High',desc:'Minimum 6 chars, no complexity, no rotation requirements',mitigation:'Implement 14+ char passwords with complexity requirements'},
+    {title:'Unmonitored Cloud Resources',category:'Cloud',score:65,severity:'Medium',desc:'Shadow IT: 8 unauthorized cloud services detected',mitigation:'Implement CASB and cloud asset inventory'},
+    {title:'Outdated SSL Certificates',category:'Network',score:55,severity:'Medium',desc:'3 internal services using TLS 1.0/1.1',mitigation:'Upgrade to TLS 1.3 and automate certificate rotation'}
+];
+
+const ACTIONS = [
+    {priority:'P1',action:'Deploy critical patches on production servers',timeline:'48 hours',status:'Overdue'},
+    {priority:'P1',action:'Enable MFA for all admin and privileged accounts',timeline:'1 week',status:'In Progress'},
+    {priority:'P2',action:'Encrypt all databases containing PII',timeline:'2 weeks',status:'Planned'},
+    {priority:'P2',action:'Conduct firewall rule audit and cleanup',timeline:'2 weeks',status:'Planned'},
+    {priority:'P3',action:'Deploy centralized SIEM logging',timeline:'30 days',status:'Planned'},
+    {priority:'P3',action:'Develop incident response playbooks',timeline:'30 days',status:'Not Started'}
+];
+
+// Risk by Category chart
+new Chart(document.getElementById('categoryChart'), {
+    type: 'radar',
+    data: {
+        labels: ['Technical','Access Control','Network','Data Protection','Detection','Supply Chain','Governance','Cloud'],
+        datasets: [{
+            label: 'Risk Score',
+            data: [95,80,72,85,78,75,72,65],
+            backgroundColor: 'rgba(244,67,54,0.2)',
+            borderColor: '#f44336',
+            pointBackgroundColor: '#f44336'
+        },{
+            label: 'Industry Benchmark',
+            data: [60,55,50,60,45,50,55,50],
+            backgroundColor: 'rgba(0,200,83,0.1)',
+            borderColor: '#00c853',
+            pointBackgroundColor: '#00c853'
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: { r: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#8b949e' }, ticks: { display: false } } },
+        plugins: { legend: { position: 'bottom', labels: { color: '#8b949e' } } }
+    }
+});
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+        datasets: [{
+            label: 'Risk Score',
+            data: [82,80,78,76,75,74,73,72],
+            borderColor: '#00c853',
+            backgroundColor: 'rgba(0,200,83,0.1)',
+            fill: true, tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: { y: { beginAtZero: false, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#8b949e' } }, x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } } },
+        plugins: { legend: { labels: { color: '#8b949e' } } }
+    }
+});
+
+// Top risks
+document.getElementById('topRisks').innerHTML = RISKS.map(r => {
+    const color = r.severity==='Critical'?'#f44336':r.severity==='High'?'#ff9800':'#ffeb3b';
+    return `<div class="risk-item d-flex align-items-start gap-3">
+        <div class="risk-score-badge" style="background:${color}20;color:${color};flex-shrink:0;">${r.score}</div>
+        <div class="flex-fill">
+            <div class="d-flex justify-content-between"><strong style="color:#e6edf3;">${r.title}</strong><span class="badge" style="background:${color};">${r.severity}</span></div>
+            <small style="color:#8b949e;">${r.category} &middot; ${r.desc}</small>
+            <div class="mitigation-step mt-2"><small><i class="bi bi-shield-check me-1" style="color:var(--accent-color);"></i>${r.mitigation}</small></div>
+        </div>
+    </div>`;
+}).join('');
+
+// Priority actions
+document.getElementById('priorityActions').innerHTML = ACTIONS.map(a => {
+    const statusColor = a.status==='Overdue'?'#f44336':a.status==='In Progress'?'#ff9800':a.status==='Planned'?'#1e88e5':'#666';
+    return `<div class="d-flex align-items-start gap-2 mb-3">
+        <span class="badge" style="background:${a.priority==='P1'?'#f44336':'#ff9800'};min-width:30px;">${a.priority}</span>
+        <div><span style="color:#e6edf3;">${a.action}</span><br><small style="color:#8b949e;">${a.timeline} &middot; <span style="color:${statusColor};">${a.status}</span></small></div>
+    </div>`;
+}).join('');
+
+function loadData() {}
+</script>
+{% endblock %}

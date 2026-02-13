@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Security Architecture - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .arch-layer { padding: 16px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid; }
+    .layer-perimeter { border-left-color: #f44336; background: rgba(244,67,54,0.06); }
+    .layer-network { border-left-color: #ff9800; background: rgba(255,152,0,0.06); }
+    .layer-endpoint { border-left-color: #ffeb3b; background: rgba(255,235,59,0.06); }
+    .layer-application { border-left-color: #1e88e5; background: rgba(30,136,229,0.06); }
+    .layer-data { border-left-color: #9c27b0; background: rgba(156,39,176,0.06); }
+    .layer-identity { border-left-color: #00c853; background: rgba(0,200,83,0.06); }
+    .principle-card { padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
+    .maturity-bar { height: 10px; border-radius: 5px; background: rgba(255,255,255,0.1); overflow: hidden; }
+    .maturity-fill { height: 100%; border-radius: 5px; transition: width 0.5s; }
+    .cloud-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; margin: 2px; }
+    .rec-item { padding: 12px 16px; border-radius: 8px; background: rgba(0,200,83,0.05); border-left: 3px solid var(--accent-color); margin-bottom: 8px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-diagram-3 me-2" style="color:var(--accent-color);"></i>Security Architecture</h2>
+            <p style="color:#8b949e;">Zero trust design, cloud security, and defense-in-depth strategies</p>
+        </div>
+    </div>
+
+    <!-- Maturity Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value">3.2</div><small style="color:#8b949e;">Maturity Score (1-5)</small></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value" style="color:#ff9800;">Developing</div><small style="color:#8b949e;">Zero Trust Status</small></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value" style="color:#4caf50;">78%</div><small style="color:#8b949e;">Cloud Security Score</small></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value">6/8</div><small style="color:#8b949e;">Defense Layers Active</small></div></div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Defense in Depth -->
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Defense-in-Depth Layers</h5></div>
+                <div class="card-body" id="defenseInDepth"></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Security Maturity Assessment</h5></div>
+                <div class="card-body" id="maturityAssessment"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Cloud Security Posture</h5></div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3" id="cloudProviders"></div>
+                    <canvas id="cloudChart" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Zero Trust Principles</h5></div>
+                <div class="card-body" id="zeroTrust"></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Architecture Maturity</h5></div>
+                <div class="card-body"><canvas id="maturityChart" height="260"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-lightbulb me-2"></i>Recommendations</h5></div>
+                <div class="card-body" id="recommendations"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const DEFENSE_LAYERS = [
+    {name:'Perimeter Security',cls:'layer-perimeter',status:'Strong',score:85,tools:['Next-Gen Firewall','WAF','DDoS Protection','DNS Filtering'],gaps:['No CASB deployed']},
+    {name:'Network Security',cls:'layer-network',status:'Moderate',score:70,tools:['Network Segmentation','IDS/IPS','VPN'],gaps:['Microsegmentation incomplete','No NAC solution']},
+    {name:'Endpoint Security',cls:'layer-endpoint',status:'Strong',score:82,tools:['EDR','Antivirus','Device Encryption','MDM'],gaps:['USB device control pending']},
+    {name:'Application Security',cls:'layer-application',status:'Developing',score:60,tools:['SAST in CI/CD','API Gateway'],gaps:['No DAST','No SCA tool','Missing WAF rules for APIs']},
+    {name:'Data Security',cls:'layer-data',status:'Weak',score:45,tools:['Backup Encryption','Access Controls'],gaps:['No DLP','Encryption at rest incomplete','No data classification']},
+    {name:'Identity & Access',cls:'layer-identity',status:'Moderate',score:72,tools:['SSO','MFA (partial)','RBAC','PAM'],gaps:['MFA not enforced for all users','No UEBA']}
+];
+
+const ZERO_TRUST = [
+    {principle:'Verify Explicitly',desc:'Always authenticate and authorize based on all available data points',score:65,status:'In Progress',impl:'MFA deployed for 70% of users. Need to add device health checks and location-based policies.'},
+    {principle:'Least Privilege Access',desc:'Limit user access with just-in-time and just-enough-access',score:55,status:'Developing',impl:'RBAC implemented. PAM for admin accounts. Need microsegmentation and JIT access for cloud resources.'},
+    {principle:'Assume Breach',desc:'Minimize blast radius and segment access. Verify end-to-end encryption.',score:50,status:'Developing',impl:'Basic network segmentation done. Need microsegmentation, UEBA, and automated response playbooks.'},
+    {principle:'Continuous Validation',desc:'Continuously validate security posture and enforce adaptive policies',score:40,status:'Early Stage',impl:'EDR provides endpoint telemetry. Need SIEM correlation, automated threat hunting, and continuous compliance monitoring.'}
+];
+
+const CLOUD_PROVIDERS = [
+    {name:'AWS',score:82,services:14,findings:8,color:'#ff9800'},
+    {name:'Azure',score:75,services:10,findings:12,color:'#1e88e5'},
+    {name:'GCP',score:70,services:5,findings:6,color:'#f44336'}
+];
+
+const MATURITY = [
+    {domain:'Identity Management',current:3.5,target:4.5},
+    {domain:'Network Security',current:3.0,target:4.0},
+    {domain:'Data Protection',current:2.0,target:4.0},
+    {domain:'Application Security',current:2.5,target:4.0},
+    {domain:'Cloud Security',current:3.2,target:4.5},
+    {domain:'Monitoring & Detection',current:3.0,target:4.5},
+    {domain:'Incident Response',current:3.5,target:4.0},
+    {domain:'Governance & Risk',current:3.8,target:4.5}
+];
+
+const RECS = [
+    {rec:'Implement data classification and DLP solution',priority:'Critical',effort:'4-6 weeks'},
+    {rec:'Complete MFA enforcement for all users and service accounts',priority:'Critical',effort:'2 weeks'},
+    {rec:'Deploy microsegmentation in production network',priority:'High',effort:'6-8 weeks'},
+    {rec:'Add DAST and SCA to CI/CD pipeline',priority:'High',effort:'2-3 weeks'},
+    {rec:'Implement CASB for shadow IT visibility',priority:'High',effort:'3-4 weeks'},
+    {rec:'Deploy UEBA for anomaly detection',priority:'Medium',effort:'4-6 weeks'}
+];
+
+// Defense layers
+document.getElementById('defenseInDepth').innerHTML = DEFENSE_LAYERS.map(l => {
+    const statusColor = l.score>=80?'#4caf50':l.score>=60?'#ff9800':'#f44336';
+    return `<div class="arch-layer ${l.cls}">
+        <div class="d-flex justify-content-between mb-2">
+            <strong style="color:#e6edf3;">${l.name}</strong>
+            <span class="badge" style="background:${statusColor};">${l.status} (${l.score}%)</span>
+        </div>
+        <div class="mb-2">${l.tools.map(t=>`<span class="cloud-badge" style="background:rgba(0,200,83,0.15);color:#00c853;">${t}</span>`).join('')}</div>
+        ${l.gaps.length?`<div>${l.gaps.map(g=>`<small style="color:#f44336;"><i class="bi bi-exclamation-circle me-1"></i>${g}</small><br>`).join('')}</div>`:''}
+    </div>`;
+}).join('');
+
+// Zero trust
+document.getElementById('zeroTrust').innerHTML = ZERO_TRUST.map(z => {
+    const color = z.score>=70?'#4caf50':z.score>=50?'#ff9800':'#f44336';
+    return `<div class="principle-card">
+        <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${z.principle}</strong><span class="badge" style="background:${color};">${z.score}%</span></div>
+        <small style="color:#8b949e;">${z.desc}</small>
+        <div class="maturity-bar mt-2"><div class="maturity-fill" style="width:${z.score}%;background:${color};"></div></div>
+        <small style="color:#c9d1d9;display:block;margin-top:6px;"><i class="bi bi-info-circle me-1" style="color:var(--accent-color);"></i>${z.impl}</small>
+    </div>`;
+}).join('');
+
+// Cloud providers
+document.getElementById('cloudProviders').innerHTML = CLOUD_PROVIDERS.map(c =>
+    `<div class="col-md-4"><div class="stat-card text-center"><div class="stat-value" style="color:${c.color};">${c.score}%</div><small style="color:#8b949e;">${c.name} (${c.services} services, ${c.findings} findings)</small></div></div>`
+).join('');
+
+// Maturity assessment
+document.getElementById('maturityAssessment').innerHTML = MATURITY.map(m => {
+    const pct = (m.current/5*100);
+    const targetPct = (m.target/5*100);
+    const color = m.current>=3.5?'#4caf50':m.current>=2.5?'#ff9800':'#f44336';
+    return `<div class="d-flex align-items-center mb-3">
+        <span style="min-width:160px;color:#c9d1d9;">${m.domain}</span>
+        <div class="flex-fill mx-2" style="position:relative;">
+            <div class="maturity-bar"><div class="maturity-fill" style="width:${pct}%;background:${color};"></div></div>
+            <div style="position:absolute;left:${targetPct}%;top:-4px;width:2px;height:18px;background:#fff;opacity:0.5;" title="Target: ${m.target}"></div>
+        </div>
+        <small style="color:#c9d1d9;min-width:60px;">${m.current} / ${m.target}</small>
+    </div>`;
+}).join('');
+
+// Maturity radar
+new Chart(document.getElementById('maturityChart'), {
+    type: 'radar',
+    data: {
+        labels: MATURITY.map(m => m.domain),
+        datasets: [
+            {label:'Current',data:MATURITY.map(m=>m.current),backgroundColor:'rgba(0,200,83,0.2)',borderColor:'#00c853',pointBackgroundColor:'#00c853'},
+            {label:'Target',data:MATURITY.map(m=>m.target),backgroundColor:'rgba(30,136,229,0.1)',borderColor:'#1e88e5',borderDash:[5,5],pointBackgroundColor:'#1e88e5'}
+        ]
+    },
+    options: { responsive:true, scales:{r:{beginAtZero:true,max:5,grid:{color:'rgba(255,255,255,0.1)'},pointLabels:{color:'#8b949e',font:{size:9}},ticks:{display:false}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Cloud chart
+new Chart(document.getElementById('cloudChart'), {
+    type: 'bar',
+    data: {
+        labels: ['IAM','Encryption','Network','Logging','Compliance','Patching'],
+        datasets: [
+            {label:'AWS',data:[90,85,80,75,82,78],backgroundColor:'#ff9800'},
+            {label:'Azure',data:[80,70,75,65,72,70],backgroundColor:'#1e88e5'},
+            {label:'GCP',data:[75,72,68,60,70,65],backgroundColor:'#f44336'}
+        ]
+    },
+    options: { responsive:true, scales:{y:{beginAtZero:true,max:100,grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}},x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Recommendations
+document.getElementById('recommendations').innerHTML = RECS.map(r => {
+    const color = r.priority==='Critical'?'#f44336':r.priority==='High'?'#ff9800':'#ffeb3b';
+    return `<div class="rec-item"><div class="d-flex justify-content-between mb-1"><span style="color:#e6edf3;">${r.rec}</span><span class="badge" style="background:${color};font-size:0.7rem;">${r.priority}</span></div><small style="color:#8b949e;">Est. effort: ${r.effort}</small></div>`;
+}).join('');
+</script>
+{% endblock %}

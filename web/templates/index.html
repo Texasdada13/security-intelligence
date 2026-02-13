@@ -14,75 +14,41 @@
 <div class="container">
     <div class="row mb-5">
         <div class="col-12 text-center mb-4">
-            <h2>Enterprise Security for SMBs</h2>
-            <p class="text-muted">Expert cybersecurity guidance without the full-time executive cost</p>
+            <h2 class="text-white">Enterprise Security for SMBs</h2>
+            <p style="color: #8b949e;">Expert cybersecurity guidance without the full-time executive cost</p>
         </div>
     </div>
     <div class="row g-4 mb-5">
+        {% for icon, title, desc, url in [
+            ('bi-exclamation-triangle', 'Risk Assessment', 'Comprehensive security risk identification and prioritization with actionable mitigation strategies', '/risk-assessment'),
+            ('bi-clipboard-check', 'Compliance Management', 'SOC 2, HIPAA, PCI-DSS, ISO 27001, and NIST framework assessment and gap analysis', '/compliance'),
+            ('bi-bug', 'Vulnerability Management', 'Risk-based vulnerability prioritization with SLA tracking and remediation guidance', '/vulnerabilities'),
+            ('bi-lightning', 'Incident Response', 'Incident tracking, response playbooks, and post-incident analysis', '/incidents'),
+            ('bi-eye', 'Threat Intelligence', 'Industry-specific threat landscape analysis and detection recommendations', '/threat-intelligence'),
+            ('bi-diagram-3', 'Security Architecture', 'Zero trust design, cloud security, and defense-in-depth strategies', '/security-architecture')
+        ] %}
         <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="feature-icon mx-auto"><i class="bi bi-exclamation-triangle text-white"></i></div>
-                    <h5>Risk Assessment</h5>
-                    <p class="text-muted">Comprehensive security risk identification and prioritization with actionable mitigation strategies</p>
+            <a href="{{ url }}" class="text-decoration-none">
+                <div class="card h-100" style="transition: transform 0.15s, box-shadow 0.15s; cursor: pointer;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,200,83,0.2)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mx-auto"><i class="bi {{ icon }} text-white"></i></div>
+                        <h5>{{ title }}</h5>
+                        <p style="color: #8b949e;">{{ desc }}</p>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="feature-icon mx-auto"><i class="bi bi-clipboard-check text-white"></i></div>
-                    <h5>Compliance Management</h5>
-                    <p class="text-muted">SOC 2, HIPAA, PCI-DSS, ISO 27001, and NIST framework assessment and gap analysis</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="feature-icon mx-auto"><i class="bi bi-bug text-white"></i></div>
-                    <h5>Vulnerability Management</h5>
-                    <p class="text-muted">Risk-based vulnerability prioritization with SLA tracking and remediation guidance</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="feature-icon mx-auto"><i class="bi bi-lightning text-white"></i></div>
-                    <h5>Incident Response</h5>
-                    <p class="text-muted">Incident tracking, response playbooks, and post-incident analysis</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="feature-icon mx-auto"><i class="bi bi-eye text-white"></i></div>
-                    <h5>Threat Intelligence</h5>
-                    <p class="text-muted">Industry-specific threat landscape analysis and detection recommendations</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="feature-icon mx-auto"><i class="bi bi-diagram-3 text-white"></i></div>
-                    <h5>Security Architecture</h5>
-                    <p class="text-muted">Zero trust design, cloud security, and defense-in-depth strategies</p>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
     <div class="row mb-5">
         <div class="col-12">
             <div class="card">
-                <div class="card-header"><h5 class="mb-0"><i class="bi bi-chat-dots me-2"></i>AI CISO Consultant</h5></div>
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-chat-dots me-2"></i>AI CISO Consultant</h5></div>
                 <div class="card-body">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <p class="mb-2">Get expert security guidance powered by Claude AI:</p>
-                            <ul class="text-muted">
+                            <p class="mb-2" style="color: #e6edf3;">Get expert security guidance powered by Claude AI:</p>
+                            <ul style="color: #8b949e;">
                                 <li>Risk assessment and prioritization</li>
                                 <li>Compliance framework guidance</li>
                                 <li>Incident response planning</li>

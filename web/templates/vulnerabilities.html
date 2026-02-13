@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Vulnerability Management - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .vuln-row { padding: 12px 16px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border-left: 4px solid; transition: background 0.15s; cursor: pointer; }
+    .vuln-row:hover { background: rgba(0,200,83,0.05); }
+    .vuln-row.sev-critical { border-left-color: #f44336; }
+    .vuln-row.sev-high { border-left-color: #ff9800; }
+    .vuln-row.sev-medium { border-left-color: #ffeb3b; }
+    .vuln-row.sev-low { border-left-color: #4caf50; }
+    .cvss-badge { width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+    .sla-overdue { color: #f44336; font-weight: 600; }
+    .sla-warning { color: #ff9800; }
+    .sla-ok { color: #4caf50; }
+    .filter-chip { display: inline-block; padding: 5px 14px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; border: 1px solid rgba(0,200,83,0.3); color: #8b949e; margin: 2px; transition: all 0.15s; }
+    .filter-chip.active, .filter-chip:hover { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-bug me-2" style="color:var(--accent-color);"></i>Vulnerability Management</h2>
+            <p style="color:#8b949e;">Track, prioritize, and remediate vulnerabilities across your infrastructure</p>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" id="totalVulns">156</div><small style="color:#8b949e;">Total Open</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#f44336;">12</div><small style="color:#8b949e;">Critical</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#ff9800;">34</div><small style="color:#8b949e;">High</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#ffeb3b;">58</div><small style="color:#8b949e;">Medium</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#f44336;">8</div><small style="color:#8b949e;">SLA Overdue</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#4caf50;">14d</div><small style="color:#8b949e;">Avg MTTR</small></div></div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Charts -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Vulnerability Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="220"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">By Asset Type</h5></div>
+                <div class="card-body"><canvas id="assetChart" height="220"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Severity Distribution</h5></div>
+                <div class="card-body"><canvas id="severityChart" height="220"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">SLA Compliance</h5></div>
+                <div class="card-body"><canvas id="slaChart" height="220"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vulnerability List -->
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-white">Open Vulnerabilities</h5>
+            <div>
+                <span class="filter-chip active" onclick="filterVulns('all',this)">All</span>
+                <span class="filter-chip" onclick="filterVulns('Critical',this)">Critical</span>
+                <span class="filter-chip" onclick="filterVulns('High',this)">High</span>
+                <span class="filter-chip" onclick="filterVulns('Medium',this)">Medium</span>
+                <span class="filter-chip" onclick="filterVulns('overdue',this)">SLA Overdue</span>
+            </div>
+        </div>
+        <div class="card-body" id="vulnList"></div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const VULNS = [
+    {cve:'CVE-2024-21762',title:'FortiOS Out-of-Bounds Write',cvss:9.8,severity:'Critical',asset:'FW-PROD-01',status:'Open',age:12,sla:7,slaStatus:'overdue'},
+    {cve:'CVE-2024-3400',title:'PAN-OS Command Injection',cvss:10.0,severity:'Critical',asset:'FW-DMZ-01',status:'In Progress',age:5,sla:7,slaStatus:'warning'},
+    {cve:'CVE-2024-1709',title:'ConnectWise ScreenConnect Auth Bypass',cvss:10.0,severity:'Critical',asset:'MGMT-SRV-01',status:'Open',age:18,sla:7,slaStatus:'overdue'},
+    {cve:'CVE-2023-44487',title:'HTTP/2 Rapid Reset Attack',cvss:7.5,severity:'High',asset:'WEB-PROD-*',status:'In Progress',age:30,sla:30,slaStatus:'warning'},
+    {cve:'CVE-2024-0204',title:'GoAnywhere MFT Auth Bypass',cvss:9.8,severity:'Critical',asset:'FTP-PROD-01',status:'Open',age:8,sla:7,slaStatus:'overdue'},
+    {cve:'CVE-2023-46747',title:'F5 BIG-IP Auth Bypass',cvss:9.8,severity:'Critical',asset:'LB-PROD-01',status:'Remediated',age:45,sla:7,slaStatus:'ok'},
+    {cve:'CVE-2024-21413',title:'Outlook Remote Code Execution',cvss:9.8,severity:'Critical',asset:'Workstations',status:'In Progress',age:10,sla:14,slaStatus:'ok'},
+    {cve:'CVE-2023-36025',title:'Windows SmartScreen Bypass',cvss:8.8,severity:'High',asset:'Workstations',status:'Open',age:22,sla:30,slaStatus:'ok'},
+    {cve:'CVE-2024-22024',title:'Ivanti Connect Secure XXE',cvss:8.3,severity:'High',asset:'VPN-01',status:'In Progress',age:14,sla:30,slaStatus:'ok'},
+    {cve:'CVE-2023-7028',title:'GitLab Account Takeover',cvss:10.0,severity:'Critical',asset:'GIT-SRV-01',status:'Open',age:3,sla:7,slaStatus:'ok'},
+    {cve:'CVE-2024-23897',title:'Jenkins CLI File Read',cvss:7.5,severity:'High',asset:'CI-CD-01',status:'Open',age:15,sla:30,slaStatus:'ok'},
+    {cve:'CVE-2023-50164',title:'Apache Struts Path Traversal',cvss:6.5,severity:'Medium',asset:'APP-LEGACY-01',status:'Open',age:40,sla:60,slaStatus:'ok'}
+];
+
+let allVulns = VULNS;
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+        datasets: [
+            {label:'New',data:[28,22,35,18,25,15,20,12],borderColor:'#f44336',tension:0.3,fill:false},
+            {label:'Remediated',data:[15,20,18,25,22,28,24,18],borderColor:'#4caf50',tension:0.3,fill:false},
+            {label:'Open Total',data:[180,182,199,192,195,182,178,156],borderColor:'#1e88e5',tension:0.3,fill:false}
+        ]
+    },
+    options: { responsive:true, scales:{y:{grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}},x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Severity chart
+new Chart(document.getElementById('severityChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Critical','High','Medium','Low'],
+        datasets: [{data:[12,34,58,52],backgroundColor:['#f44336','#ff9800','#ffeb3b','#4caf50']}]
+    },
+    options: { responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Asset chart
+new Chart(document.getElementById('assetChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Servers','Network Devices','Workstations','Applications','Cloud'],
+        datasets: [
+            {label:'Critical',data:[5,4,1,2,0],backgroundColor:'#f44336'},
+            {label:'High',data:[8,6,10,5,5],backgroundColor:'#ff9800'},
+            {label:'Medium',data:[12,8,15,13,10],backgroundColor:'#ffeb3b'}
+        ]
+    },
+    options: { responsive:true, scales:{x:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}},y:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.1)'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// SLA chart
+new Chart(document.getElementById('slaChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Critical (7d)','High (30d)','Medium (60d)','Low (90d)'],
+        datasets: [
+            {label:'Within SLA',data:[5,28,52,48],backgroundColor:'#4caf50'},
+            {label:'At Risk',data:[4,4,4,3],backgroundColor:'#ff9800'},
+            {label:'Overdue',data:[3,2,2,1],backgroundColor:'#f44336'}
+        ]
+    },
+    options: { responsive:true, indexAxis:'y', scales:{x:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}},y:{stacked:true,ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.1)'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+function renderVulns(vulns) {
+    document.getElementById('vulnList').innerHTML = vulns.map(v => {
+        const cvssColor = v.cvss>=9?'#f44336':v.cvss>=7?'#ff9800':v.cvss>=4?'#ffeb3b':'#4caf50';
+        const slaClass = v.slaStatus==='overdue'?'sla-overdue':v.slaStatus==='warning'?'sla-warning':'sla-ok';
+        const statusBg = v.status==='Remediated'?'#4caf50':v.status==='In Progress'?'#1e88e5':'rgba(255,255,255,0.1)';
+        return `<div class="vuln-row sev-${v.severity.toLowerCase()}">
+            <div class="d-flex align-items-center gap-3">
+                <div class="cvss-badge" style="background:${cvssColor}20;color:${cvssColor};">${v.cvss}</div>
+                <div class="flex-fill">
+                    <div><strong style="color:#e6edf3;">${v.cve}</strong> <span style="color:#c9d1d9;">${v.title}</span></div>
+                    <small style="color:#8b949e;">Asset: ${v.asset} &middot; Age: ${v.age}d &middot; SLA: <span class="${slaClass}">${v.slaStatus==='overdue'?'OVERDUE':v.slaStatus==='warning'?'At Risk':'OK'}</span></small>
+                </div>
+                <span class="badge" style="background:${statusBg};">${v.status}</span>
+                <span class="badge badge-${v.severity.toLowerCase()}">${v.severity}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterVulns(filter, el) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    if (filter === 'all') renderVulns(allVulns);
+    else if (filter === 'overdue') renderVulns(allVulns.filter(v => v.slaStatus === 'overdue'));
+    else renderVulns(allVulns.filter(v => v.severity === filter));
+}
+
+renderVulns(allVulns);
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Incident Response - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .incident-card { padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); border-left: 4px solid; margin-bottom: 10px; transition: background 0.15s; cursor: pointer; }
+    .incident-card:hover { background: rgba(0,200,83,0.05); }
+    .incident-card.sev-critical { border-left-color: #f44336; }
+    .incident-card.sev-high { border-left-color: #ff9800; }
+    .incident-card.sev-medium { border-left-color: #ffeb3b; }
+    .incident-card.sev-low { border-left-color: #4caf50; }
+    .playbook-step { padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+    .playbook-step.done { background: rgba(76,175,80,0.1); border-left: 3px solid #4caf50; }
+    .playbook-step.active { background: rgba(30,136,229,0.1); border-left: 3px solid #1e88e5; }
+    .playbook-step.pending { background: rgba(255,255,255,0.03); border-left: 3px solid #666; }
+    .timeline-item { position: relative; padding-left: 30px; padding-bottom: 20px; border-left: 2px solid rgba(0,200,83,0.3); }
+    .timeline-item::before { content: ''; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color); }
+    .timeline-item:last-child { border-left-color: transparent; }
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-lightning me-2" style="color:var(--accent-color);"></i>Incident Response</h2>
+            <p style="color:#8b949e;">Track incidents, execute playbooks, and conduct post-incident analysis</p>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value">3</div><small style="color:#8b949e;">Active Incidents</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#f44336;">1</div><small style="color:#8b949e;">Critical</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#4caf50;">18</div><small style="color:#8b949e;">Resolved (90d)</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value">4.2h</div><small style="color:#8b949e;">Avg MTTD</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value">12h</div><small style="color:#8b949e;">Avg MTTR</small></div></div>
+        <div class="col-md-2"><div class="stat-card text-center"><div class="stat-value" style="color:#4caf50;">94%</div><small style="color:#8b949e;">SLA Met</small></div></div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Incident List -->
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Active Incidents</h5></div>
+                <div class="card-body" id="activeIncidents"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Recent Resolved</h5></div>
+                <div class="card-body" id="resolvedIncidents"></div>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Incident Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="200"></canvas></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">By Category</h5></div>
+                <div class="card-body"><canvas id="categoryChart" height="200"></canvas></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-journal-text me-2"></i>Response Playbook</h5></div>
+                <div class="card-body" id="playbook"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-clock-history me-2"></i>Incident Timeline</h5></div>
+                <div class="card-body" id="timeline"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const ACTIVE_INCIDENTS = [
+    {id:'INC-2025-042',title:'Ransomware Attempt on File Server',category:'Malware',severity:'Critical',status:'Investigating',assigned:'Security Team',detected:'2 hours ago',affected:['FS-PROD-01','FS-PROD-02'],desc:'Suspicious encryption activity detected on production file servers. EDR quarantined initial payload.'},
+    {id:'INC-2025-041',title:'Phishing Campaign Targeting Executives',category:'Phishing',severity:'High',status:'Contained',assigned:'SOC Analyst',detected:'6 hours ago',affected:['Email Gateway'],desc:'Sophisticated spear-phishing emails impersonating CEO sent to finance team. 2 users clicked links.'},
+    {id:'INC-2025-040',title:'Unauthorized API Access Detected',category:'Data Breach',severity:'High',status:'Investigating',assigned:'DevSecOps',detected:'1 day ago',affected:['API-GW-01'],desc:'Unusual API calls from unrecognized IP accessing customer data endpoint. Rate limiting triggered.'}
+];
+
+const RESOLVED_INCIDENTS = [
+    {id:'INC-2025-039',title:'DDoS Attack on Web Infrastructure',category:'DDoS',severity:'High',status:'Resolved',resolved:'2 days ago',ttd:'15 min',ttr:'2 hours',lessons:'CDN failover worked as expected. Need to update runbook for cloud scaling.'},
+    {id:'INC-2025-038',title:'Compromised Service Account',category:'Access',severity:'Critical',status:'Resolved',resolved:'5 days ago',ttd:'4 hours',ttr:'8 hours',lessons:'Service accounts need MFA. Implemented automated credential rotation.'},
+    {id:'INC-2025-037',title:'SQL Injection on Legacy App',category:'Application',severity:'Medium',status:'Resolved',resolved:'1 week ago',ttd:'2 hours',ttr:'6 hours',lessons:'WAF rule updated. Legacy app scheduled for decommission in Q2.'}
+];
+
+const PLAYBOOK_STEPS = [
+    {step:'Detection & Triage',status:'done',desc:'EDR alert triggered, severity confirmed as Critical'},
+    {step:'Containment',status:'done',desc:'Isolated affected servers from network, blocked C2 IPs'},
+    {step:'Evidence Collection',status:'active',desc:'Capturing memory dumps, disk images, and network logs'},
+    {step:'Eradication',status:'pending',desc:'Remove malware, patch entry point, reset credentials'},
+    {step:'Recovery',status:'pending',desc:'Restore from clean backups, verify integrity'},
+    {step:'Post-Incident Review',status:'pending',desc:'Document timeline, update playbook, share lessons learned'}
+];
+
+const TIMELINE = [
+    {time:'14:32',event:'EDR Alert: Suspicious encryption activity on FS-PROD-01',type:'alert'},
+    {time:'14:35',event:'SOC acknowledged alert, escalated to Security Lead',type:'action'},
+    {time:'14:42',event:'Network isolation of FS-PROD-01 and FS-PROD-02',type:'action'},
+    {time:'14:55',event:'C2 communication IPs identified and blocked at firewall',type:'action'},
+    {time:'15:10',event:'Memory dump initiated on affected systems',type:'investigation'},
+    {time:'15:30',event:'Initial assessment: ransomware variant identified as LockBit 3.0',type:'finding'},
+    {time:'Now',event:'Evidence collection in progress, awaiting disk images',type:'current'}
+];
+
+// Active incidents
+document.getElementById('activeIncidents').innerHTML = ACTIVE_INCIDENTS.map(inc => {
+    const sevColor = inc.severity==='Critical'?'#f44336':'#ff9800';
+    const statusColor = inc.status==='Investigating'?'#1e88e5':'#ff9800';
+    return `<div class="incident-card sev-${inc.severity.toLowerCase()}">
+        <div class="d-flex justify-content-between mb-2">
+            <div><strong style="color:#e6edf3;">${inc.id}</strong> <span style="color:#c9d1d9;">${inc.title}</span></div>
+            <span class="badge" style="background:${sevColor};">${inc.severity}</span>
+        </div>
+        <p style="color:#8b949e;margin-bottom:8px;font-size:0.9rem;">${inc.desc}</p>
+        <div class="d-flex gap-3 flex-wrap">
+            <small style="color:#8b949e;"><i class="bi bi-tag me-1"></i>${inc.category}</small>
+            <small><span class="status-badge" style="background:${statusColor}20;color:${statusColor};">${inc.status}</span></small>
+            <small style="color:#8b949e;"><i class="bi bi-person me-1"></i>${inc.assigned}</small>
+            <small style="color:#8b949e;"><i class="bi bi-clock me-1"></i>${inc.detected}</small>
+        </div>
+    </div>`;
+}).join('');
+
+// Resolved incidents
+document.getElementById('resolvedIncidents').innerHTML = RESOLVED_INCIDENTS.map(inc => `
+    <div class="incident-card sev-${inc.severity.toLowerCase()}" style="opacity:0.8;">
+        <div class="d-flex justify-content-between mb-1">
+            <div><strong style="color:#e6edf3;">${inc.id}</strong> <span style="color:#c9d1d9;">${inc.title}</span></div>
+            <span class="badge bg-success">Resolved</span>
+        </div>
+        <small style="color:#8b949e;">Resolved ${inc.resolved} &middot; MTTD: ${inc.ttd} &middot; MTTR: ${inc.ttr}</small>
+        <div style="color:#8b949e;font-size:0.85rem;margin-top:6px;"><i class="bi bi-lightbulb me-1" style="color:var(--accent-color);"></i>${inc.lessons}</div>
+    </div>
+`).join('');
+
+// Playbook
+document.getElementById('playbook').innerHTML = PLAYBOOK_STEPS.map(s => {
+    const icon = s.status==='done'?'bi-check-circle-fill text-success':s.status==='active'?'bi-arrow-right-circle-fill text-primary':'bi-circle text-muted';
+    return `<div class="playbook-step ${s.status}"><i class="bi ${icon}"></i><div><strong style="color:#e6edf3;">${s.step}</strong><br><small style="color:#8b949e;">${s.desc}</small></div></div>`;
+}).join('');
+
+// Timeline
+document.getElementById('timeline').innerHTML = TIMELINE.map(t =>
+    `<div class="timeline-item"><small class="fw-bold" style="color:var(--accent-color);">${t.time}</small><br><span style="color:#c9d1d9;font-size:0.9rem;">${t.event}</span></div>`
+).join('');
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+        datasets: [
+            {label:'New',data:[5,3,7,4,6,3,4,3],backgroundColor:'#f44336'},
+            {label:'Resolved',data:[4,5,5,6,5,4,5,2],backgroundColor:'#4caf50'}
+        ]
+    },
+    options: { responsive:true, scales:{y:{grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}},x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Category chart
+new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Malware','Phishing','Data Breach','DDoS','Access','Application'],
+        datasets: [{data:[8,12,4,3,6,5],backgroundColor:['#f44336','#ff9800','#e91e63','#9c27b0','#1e88e5','#00bcd4']}]
+    },
+    options: { responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+</script>
+{% endblock %}

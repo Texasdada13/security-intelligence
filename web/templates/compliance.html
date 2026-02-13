@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Compliance Management - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .framework-card { border-radius: 12px; padding: 20px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); transition: transform 0.15s; cursor: pointer; }
+    .framework-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,200,83,0.15); }
+    .framework-card.active { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(0,200,83,0.3); }
+    .score-ring { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; }
+    .control-row { padding: 10px 14px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid transparent; }
+    .control-row.implemented { border-left-color: #4caf50; }
+    .control-row.partial { border-left-color: #ff9800; }
+    .control-row.missing { border-left-color: #f44336; }
+    .gap-item { padding: 12px 16px; border-radius: 10px; background: rgba(244,67,54,0.08); border: 1px solid rgba(244,67,54,0.2); margin-bottom: 8px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-clipboard-check me-2" style="color:var(--accent-color);"></i>Compliance Management</h2>
+            <p style="color:#8b949e;">Framework assessments, control mapping, and gap analysis</p>
+        </div>
+    </div>
+
+    <!-- Framework Cards -->
+    <div class="row g-3 mb-4">
+        {% for fw, score, total, impl, color in [('SOC 2', 78, 64, 50, '#1e88e5'), ('HIPAA', 65, 54, 35, '#e91e63'), ('PCI DSS', 72, 78, 56, '#ff9800'), ('ISO 27001', 58, 114, 66, '#9c27b0'), ('NIST CSF', 70, 98, 69, '#00bcd4')] %}
+        <div class="col">
+            <div class="framework-card text-center" onclick="selectFramework('{{ fw }}')">
+                <div class="score-ring mx-auto mb-2" style="background:{{ color }}20;color:{{ color }};">{{ score }}%</div>
+                <h6 style="color:#e6edf3;">{{ fw }}</h6>
+                <small style="color:#8b949e;">{{ impl }}/{{ total }} controls</small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-4">
+        <!-- Controls Breakdown -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="mb-0 text-white" id="frameworkTitle">SOC 2 - Controls Status</h5><span class="badge bg-primary" id="auditReadiness">Audit Ready: Partial</span></div>
+                <div class="card-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4 text-center"><div class="stat-card"><div class="stat-value" style="color:#4caf50;">50</div><small style="color:#8b949e;">Implemented</small></div></div>
+                        <div class="col-md-4 text-center"><div class="stat-card"><div class="stat-value" style="color:#ff9800;">8</div><small style="color:#8b949e;">Partially Implemented</small></div></div>
+                        <div class="col-md-4 text-center"><div class="stat-card"><div class="stat-value" style="color:#f44336;">6</div><small style="color:#8b949e;">Missing</small></div></div>
+                    </div>
+                    <canvas id="controlsChart" height="250"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Control Details</h5></div>
+                <div class="card-body" id="controlsList"></div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Compliance Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="200"></canvas></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-exclamation-triangle me-2"></i>Critical Gaps</h5></div>
+                <div class="card-body" id="criticalGaps"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-calendar-check me-2"></i>Remediation Roadmap</h5></div>
+                <div class="card-body" id="roadmap"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const CONTROLS = {
+    'SOC 2': [
+        {domain:'Security',controls:['Access Control Policy','Encryption Standards','Network Security','Vulnerability Management','Incident Response'],status:['implemented','implemented','implemented','partial','implemented']},
+        {domain:'Availability',controls:['Disaster Recovery','Backup Procedures','Capacity Planning','SLA Monitoring'],status:['implemented','implemented','partial','implemented']},
+        {domain:'Confidentiality',controls:['Data Classification','DLP Controls','Encryption at Rest','Key Management'],status:['implemented','partial','missing','missing']},
+        {domain:'Processing Integrity',controls:['Input Validation','Error Handling','Reconciliation','Change Management'],status:['implemented','implemented','implemented','partial']},
+        {domain:'Privacy',controls:['Consent Management','Data Retention','Right to Erasure','Privacy Impact Assessment'],status:['partial','missing','missing','missing']}
+    ]
+};
+
+const GAPS = [
+    {gap:'No encryption at rest for customer databases',framework:'SOC 2',severity:'Critical',effort:'2-3 weeks'},
+    {gap:'Missing data retention policy and automated deletion',framework:'SOC 2 / HIPAA',severity:'Critical',effort:'1-2 weeks'},
+    {gap:'Privacy impact assessments not conducted',framework:'SOC 2 / GDPR',severity:'High',effort:'2 weeks'},
+    {gap:'Key management procedures undocumented',framework:'PCI DSS',severity:'High',effort:'1 week'},
+    {gap:'No formal right-to-erasure process',framework:'SOC 2 / GDPR',severity:'Medium',effort:'2-3 weeks'}
+];
+
+const ROADMAP = [
+    {phase:'Phase 1 (0-30 days)',items:['Implement database encryption','Document key management','Create data retention policy'],color:'#f44336'},
+    {phase:'Phase 2 (30-60 days)',items:['Deploy DLP controls','Conduct privacy impact assessments','Build consent management'],color:'#ff9800'},
+    {phase:'Phase 3 (60-90 days)',items:['Automate data deletion','Implement right-to-erasure','External audit prep'],color:'#4caf50'}
+];
+
+// Controls chart
+new Chart(document.getElementById('controlsChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Security','Availability','Confidentiality','Processing Integrity','Privacy'],
+        datasets: [
+            {label:'Implemented',data:[4,3,1,3,0],backgroundColor:'#4caf50'},
+            {label:'Partial',data:[1,1,1,1,1],backgroundColor:'#ff9800'},
+            {label:'Missing',data:[0,0,2,0,3],backgroundColor:'#f44336'}
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { x: { stacked: true, ticks:{color:'#8b949e'}, grid:{color:'rgba(255,255,255,0.05)'} }, y: { stacked: true, ticks:{color:'#8b949e'}, grid:{color:'rgba(255,255,255,0.1)'} } },
+        plugins: { legend: { position:'bottom', labels:{color:'#8b949e'} } }
+    }
+});
+
+// Trend chart
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Q1 24','Q2 24','Q3 24','Q4 24','Q1 25','Q2 25','Q3 25','Q4 25'],
+        datasets: [
+            {label:'SOC 2',data:[55,58,62,65,68,72,75,78],borderColor:'#1e88e5',tension:0.3,fill:false},
+            {label:'HIPAA',data:[40,45,48,52,55,58,62,65],borderColor:'#e91e63',tension:0.3,fill:false},
+            {label:'PCI DSS',data:[50,54,58,60,63,66,69,72],borderColor:'#ff9800',tension:0.3,fill:false}
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { y:{beginAtZero:false,grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}}, x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}} },
+        plugins: { legend:{position:'bottom',labels:{color:'#8b949e'}} }
+    }
+});
+
+// Control details
+const controls = CONTROLS['SOC 2'];
+document.getElementById('controlsList').innerHTML = controls.map(domain => `
+    <h6 style="color:var(--accent-color);margin-top:16px;">${domain.domain}</h6>
+    ${domain.controls.map((c,i) => {
+        const s = domain.status[i];
+        const icon = s==='implemented'?'bi-check-circle text-success':s==='partial'?'bi-exclamation-circle text-warning':'bi-x-circle text-danger';
+        return `<div class="control-row ${s}"><i class="bi ${icon} me-2"></i><span style="color:#c9d1d9;">${c}</span><span class="float-end badge ${s==='implemented'?'bg-success':s==='partial'?'bg-warning':'bg-danger'}">${s}</span></div>`;
+    }).join('')}
+`).join('');
+
+// Critical gaps
+document.getElementById('criticalGaps').innerHTML = GAPS.map(g => {
+    const color = g.severity==='Critical'?'#f44336':'#ff9800';
+    return `<div class="gap-item"><div class="d-flex justify-content-between mb-1"><span style="color:#e6edf3;">${g.gap}</span><span class="badge" style="background:${color};">${g.severity}</span></div><small style="color:#8b949e;">${g.framework} &middot; Est. effort: ${g.effort}</small></div>`;
+}).join('');
+
+// Roadmap
+document.getElementById('roadmap').innerHTML = ROADMAP.map(r =>
+    `<div class="mb-3"><div class="fw-bold mb-1" style="color:${r.color};">${r.phase}</div>${r.items.map(i=>`<div style="color:#c9d1d9;padding:4px 0;"><i class="bi bi-arrow-right me-2" style="color:${r.color};"></i>${i}</div>`).join('')}</div>`
+).join('');
+
+function selectFramework(name) {
+    document.getElementById('frameworkTitle').textContent = name + ' - Controls Status';
+    document.querySelectorAll('.framework-card').forEach(c => c.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+}
+</script>
+{% endblock %}

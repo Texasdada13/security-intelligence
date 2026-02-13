@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Threat Intelligence - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block extra_css %}
+<style>
+    .threat-card { padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
+    .threat-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; margin: 2px; background: rgba(30,136,229,0.15); color: #1e88e5; }
+    .ioc-item { padding: 8px 14px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 4px; font-family: monospace; font-size: 0.85rem; display: flex; justify-content: space-between; }
+    .feed-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .ttp-item { padding: 10px 14px; border-radius: 8px; background: rgba(0,200,83,0.05); border-left: 3px solid var(--accent-color); margin-bottom: 6px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="text-white"><i class="bi bi-eye me-2" style="color:var(--accent-color);"></i>Threat Intelligence</h2>
+            <p style="color:#8b949e;">Industry-specific threat landscape, IOCs, and detection recommendations</p>
+        </div>
+    </div>
+
+    <!-- Threat Level -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value" style="color:#ff9800;">Elevated</div><small style="color:#8b949e;">Threat Level</small></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value">847</div><small style="color:#8b949e;">Active IOCs</small></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value" style="color:#f44336;">12</div><small style="color:#8b949e;">Active Campaigns</small></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><div class="stat-value" style="color:#4caf50;">96%</div><small style="color:#8b949e;">Detection Coverage</small></div></div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Active Threats -->
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Active Threat Campaigns</h5></div>
+                <div class="card-body" id="threatCampaigns"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Indicators of Compromise (IOCs)</h5></div>
+                <div class="card-body" id="iocList"></div>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">Threat Sources</h5></div>
+                <div class="card-body"><canvas id="sourceChart" height="220"></canvas></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white">MITRE ATT&CK TTPs</h5></div>
+                <div class="card-body" id="ttpList"></div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-header"><h5 class="mb-0 text-white"><i class="bi bi-shield-check me-2"></i>Detection Recommendations</h5></div>
+                <div class="card-body" id="detectionRecs"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0 text-white">Threat Trend</h5></div>
+                <div class="card-body"><canvas id="trendChart" height="180"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const CAMPAIGNS = [
+    {name:'BlackCat/ALPHV Ransomware',group:'ALPHV',severity:'Critical',industry:'Technology, Healthcare',active:true,
+     desc:'Sophisticated ransomware-as-a-service operation targeting VMware ESXi and Windows environments. Uses double extortion.',
+     ttps:['T1566 - Phishing','T1486 - Data Encrypted for Impact','T1027 - Obfuscated Files','T1021 - Remote Services'],
+     tags:['Ransomware','RaaS','Data Exfiltration','ESXi']},
+    {name:'Volt Typhoon - Living Off the Land',group:'Volt Typhoon (China)',severity:'Critical',industry:'Critical Infrastructure',active:true,
+     desc:'Nation-state APT using legitimate tools (LOTL) to maintain persistent access to US infrastructure networks.',
+     ttps:['T1059 - Command Line','T1046 - Network Discovery','T1078 - Valid Accounts','T1003 - Credential Dumping'],
+     tags:['APT','Nation State','LOTL','Persistence']},
+    {name:'FIN7 Social Engineering',group:'FIN7',severity:'High',industry:'Financial, Retail',active:true,
+     desc:'Resumed operations using fake company fronts and USB-based attacks. Targets payment systems and POS terminals.',
+     ttps:['T1566.001 - Spearphishing','T1091 - USB Replication','T1055 - Process Injection'],
+     tags:['Financial','Social Engineering','POS']},
+    {name:'LockBit 3.0 Resurgence',group:'LockBit',severity:'High',industry:'All Sectors',active:true,
+     desc:'Despite law enforcement takedown, LockBit has resumed operations with updated infrastructure and affiliate program.',
+     ttps:['T1486 - Data Encrypted','T1490 - Inhibit System Recovery','T1562 - Impair Defenses'],
+     tags:['Ransomware','RaaS','Resurgence']}
+];
+
+const IOCS = [
+    {type:'IP',value:'185.220.101.34',confidence:'High',source:'Threat Feed',campaign:'BlackCat/ALPHV'},
+    {type:'IP',value:'91.215.85.209',confidence:'High',source:'CISA Alert',campaign:'Volt Typhoon'},
+    {type:'Domain',value:'update-service[.]cloud',confidence:'Medium',source:'Internal',campaign:'LockBit 3.0'},
+    {type:'Hash',value:'a3b5c8d7e9f1234567890abcdef12345',confidence:'High',source:'VirusTotal',campaign:'BlackCat/ALPHV'},
+    {type:'Domain',value:'secure-login-portal[.]net',confidence:'High',source:'Phishing DB',campaign:'FIN7'},
+    {type:'IP',value:'45.33.32.156',confidence:'Medium',source:'Threat Feed',campaign:'LockBit 3.0'},
+    {type:'Hash',value:'deadbeef0123456789abcdef01234567',confidence:'High',source:'EDR Detection',campaign:'BlackCat/ALPHV'},
+    {type:'URL',value:'hxxps://dl.dropbox[.]com/s/malicious/payload.exe',confidence:'High',source:'Sandbox',campaign:'FIN7'}
+];
+
+const TTPS = [
+    {id:'T1566',name:'Phishing',tactic:'Initial Access',frequency:'Very High',detected:true},
+    {id:'T1486',name:'Data Encrypted for Impact',tactic:'Impact',frequency:'High',detected:true},
+    {id:'T1059',name:'Command & Scripting Interpreter',tactic:'Execution',frequency:'High',detected:true},
+    {id:'T1078',name:'Valid Accounts',tactic:'Persistence',frequency:'High',detected:false},
+    {id:'T1021',name:'Remote Services',tactic:'Lateral Movement',frequency:'Medium',detected:true},
+    {id:'T1003',name:'OS Credential Dumping',tactic:'Credential Access',frequency:'Medium',detected:false},
+    {id:'T1027',name:'Obfuscated Files or Info',tactic:'Defense Evasion',frequency:'High',detected:true}
+];
+
+const DETECTIONS = [
+    {rec:'Deploy YARA rules for BlackCat/ALPHV ransomware variants',priority:'Critical',status:'Pending'},
+    {rec:'Block known Volt Typhoon C2 IPs at perimeter firewall',priority:'Critical',status:'Implemented'},
+    {rec:'Enable PowerShell script block logging for LOTL detection',priority:'High',status:'In Progress'},
+    {rec:'Update email filtering rules for FIN7 phishing indicators',priority:'High',status:'Implemented'},
+    {rec:'Implement LSASS protection to prevent credential dumping',priority:'High',status:'Pending'},
+    {rec:'Deploy USB device control policies',priority:'Medium',status:'Planned'}
+];
+
+// Campaigns
+document.getElementById('threatCampaigns').innerHTML = CAMPAIGNS.map(c => {
+    const sevColor = c.severity==='Critical'?'#f44336':'#ff9800';
+    return `<div class="threat-card">
+        <div class="d-flex justify-content-between mb-2">
+            <div><strong style="color:#e6edf3;font-size:1.05rem;">${c.name}</strong><br><small style="color:#8b949e;">Threat Actor: ${c.group} &middot; Targets: ${c.industry}</small></div>
+            <span class="badge" style="background:${sevColor};">${c.severity}</span>
+        </div>
+        <p style="color:#c9d1d9;font-size:0.9rem;margin-bottom:8px;">${c.desc}</p>
+        <div class="mb-2">${c.tags.map(t=>`<span class="threat-tag">${t}</span>`).join('')}</div>
+        <div><small style="color:#8b949e;">TTPs: ${c.ttps.join(' | ')}</small></div>
+    </div>`;
+}).join('');
+
+// IOCs
+document.getElementById('iocList').innerHTML = IOCS.map(i => {
+    const confColor = i.confidence==='High'?'#4caf50':'#ff9800';
+    return `<div class="ioc-item"><span style="color:#c9d1d9;"><span class="badge bg-secondary me-2">${i.type}</span>${i.value}</span><span><span class="feed-badge" style="background:${confColor}20;color:${confColor};">${i.confidence}</span> <small style="color:#666;margin-left:8px;">${i.campaign}</small></span></div>`;
+}).join('');
+
+// TTPs
+document.getElementById('ttpList').innerHTML = TTPS.map(t => `
+    <div class="ttp-item d-flex justify-content-between align-items-center">
+        <div><strong style="color:#e6edf3;">${t.id}</strong> <span style="color:#c9d1d9;">${t.name}</span><br><small style="color:#8b949e;">${t.tactic}</small></div>
+        <div class="text-end"><small style="color:#8b949e;">${t.frequency}</small><br>${t.detected?'<span class="badge bg-success">Detected</span>':'<span class="badge bg-danger">Gap</span>'}</div>
+    </div>
+`).join('');
+
+// Detection recommendations
+document.getElementById('detectionRecs').innerHTML = DETECTIONS.map(d => {
+    const statusColor = d.status==='Implemented'?'#4caf50':d.status==='In Progress'?'#1e88e5':d.status==='Pending'?'#ff9800':'#666';
+    const prioColor = d.priority==='Critical'?'#f44336':'#ff9800';
+    return `<div class="d-flex align-items-start gap-2 mb-3">
+        <span class="badge" style="background:${prioColor};min-width:55px;font-size:0.7rem;">${d.priority}</span>
+        <div><span style="color:#c9d1d9;font-size:0.9rem;">${d.rec}</span><br><small style="color:${statusColor};">${d.status}</small></div>
+    </div>`;
+}).join('');
+
+// Source chart
+new Chart(document.getElementById('sourceChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Nation State','Ransomware','Cybercrime','Hacktivism','Insider'],
+        datasets: [{data:[25,35,22,10,8],backgroundColor:['#f44336','#ff9800','#1e88e5','#9c27b0','#ffeb3b']}]
+    },
+    options: { responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+
+// Trend
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: ['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'],
+        datasets: [
+            {label:'Threats Detected',data:[45,52,38,65,58,48,55,62],borderColor:'#f44336',tension:0.3,fill:false},
+            {label:'IOCs Blocked',data:[120,145,110,180,165,130,150,170],borderColor:'#4caf50',tension:0.3,fill:false}
+        ]
+    },
+    options: { responsive:true, scales:{y:{grid:{color:'rgba(255,255,255,0.1)'},ticks:{color:'#8b949e'}},x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e'}}}, plugins:{legend:{position:'bottom',labels:{color:'#8b949e'}}} }
+});
+</script>
+{% endblock %}

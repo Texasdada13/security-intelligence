@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Network Assessment - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Network Assessment{% endblock %}
 {% block extra_css %}
 <style>
-    .assessment-tab { padding: 12px 20px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.15s; text-align: center; }
-    .assessment-tab:hover { border-color: var(--accent-color); }
-    .assessment-tab.active { border-color: var(--accent-color); background: rgba(0,200,83,0.1); }
+    .assessment-tab { padding: 12px 20px; border-radius: 10px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.15s; text-align: center; }
+    .assessment-tab:hover { border-color: var(--pt-interactive-accent); }
+    .assessment-tab.active { border-color: var(--pt-interactive-accent); background: rgba(0,200,83,0.1); }
     .finding-row { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid; }
     .finding-row.Critical { border-left-color: #f44336; }
     .finding-row.High { border-left-color: #ff9800; }
@@ -19,10 +20,9 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-hdd-network me-2" style="color:var(--accent-color);"></i>Network & Infrastructure Assessment</h2>
+            <h2 class="text-white"><i class="bi bi-hdd-network me-2" style="color:var(--pt-interactive-accent);"></i>Network & Infrastructure Assessment</h2>
             <p style="color:#8b949e;">Attack surface illumination across on-prem, hybrid, and cloud environments</p>
         </div>
         <button class="btn btn-outline-light btn-sm" onclick="exportAssessment()"><i class="bi bi-download me-1"></i>Export Report</button>
@@ -33,7 +33,7 @@
         {% for icon, name, desc in [('bi-globe', 'External', 'Internet-facing'), ('bi-house', 'Internal', 'Internal network'), ('bi-wifi', 'Wireless', 'WiFi security'), ('bi-cloud', 'Cloud', 'AWS/Azure/GCP'), ('bi-diagram-3', 'Segmentation', 'Network zones')] %}
         <div class="col">
             <div class="assessment-tab {% if loop.first %}active{% endif %}">
-                <i class="bi {{ icon }}" style="font-size:1.3rem;color:var(--accent-color);"></i>
+                <i class="bi {{ icon }}" style="font-size:1.3rem;color:var(--pt-interactive-accent);"></i>
                 <div style="color:#e6edf3;font-size:0.9rem;">{{ name }}</div>
                 <small style="color:#8b949e;">{{ desc }}</small>
             </div>

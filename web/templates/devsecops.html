@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}DevSecOps - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}DevSecOps{% endblock %}
 {% block extra_css %}
 <style>
-    .phase-card { border-radius: 12px; padding: 16px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); transition: all 0.15s; position: relative; overflow: hidden; }
+    .phase-card { border-radius: 12px; padding: 16px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); transition: all 0.15s; position: relative; overflow: hidden; }
     .phase-card::after { content:''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; }
     .phase-card.level-0::after { background: #f44336; }
     .phase-card.level-1::after { background: #ff9800; }
@@ -14,16 +15,15 @@
     .pipeline-scan.fail { border-left-color: #f44336; }
     .gate-card { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); }
     .maturity-level { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-    .tool-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; margin: 3px; background: rgba(0,200,83,0.1); color: var(--accent-color); border: 1px solid rgba(0,200,83,0.2); }
+    .tool-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; margin: 3px; background: rgba(0,200,83,0.1); color: var(--pt-interactive-accent); border: 1px solid rgba(0,200,83,0.2); }
     .tool-badge.inactive { background: rgba(255,255,255,0.05); color: #8b949e; border-color: rgba(255,255,255,0.1); }
     .activity-item { padding: 6px 0; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-infinity me-2" style="color:var(--accent-color);"></i>DevSecOps & Secure SDLC</h2>
+            <h2 class="text-white"><i class="bi bi-infinity me-2" style="color:var(--pt-interactive-accent);"></i>DevSecOps & Secure SDLC</h2>
             <p style="color:#8b949e;">CI/CD security pipeline integration and secure development lifecycle maturity</p>
         </div>
         <button class="btn btn-outline-light btn-sm" onclick="exportDevSecOps()"><i class="bi bi-download me-1"></i>Export Report</button>

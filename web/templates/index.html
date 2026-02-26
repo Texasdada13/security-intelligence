@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Security Intelligence - AI-Powered CISO{% endblock %}
+{% block page_title %}Security Intelligence{% endblock %}
 {% block content %}
 <div class="hero-section text-white text-center">
     <div class="container">
@@ -62,7 +63,7 @@
             <a href="{{ url }}" class="text-decoration-none">
                 <div class="card h-100" style="transition: transform 0.15s, box-shadow 0.15s; cursor: pointer; border-color: rgba(30,136,229,0.3);" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(30,136,229,0.2)';" onmouseout="this.style.transform='';this.style.boxShadow='';">
                     <div class="card-body text-center p-4">
-                        <div class="feature-icon mx-auto" style="background: var(--secondary-gradient);"><i class="bi {{ icon }} text-white"></i></div>
+                        <div class="feature-icon mx-auto" style="background: var(--pt-gradient-navy);"><i class="bi {{ icon }} text-white"></i></div>
                         <h5>{{ title }}</h5>
                         <p style="color: #8b949e;">{{ desc }}</p>
                     </div>

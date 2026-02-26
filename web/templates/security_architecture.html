@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Security Architecture - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Security Architecture{% endblock %}
 {% block extra_css %}
 <style>
     .arch-layer { padding: 16px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid; }
@@ -9,18 +10,17 @@
     .layer-application { border-left-color: #1e88e5; background: rgba(30,136,229,0.06); }
     .layer-data { border-left-color: #9c27b0; background: rgba(156,39,176,0.06); }
     .layer-identity { border-left-color: #00c853; background: rgba(0,200,83,0.06); }
-    .principle-card { padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
+    .principle-card { padding: 16px; border-radius: 10px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
     .maturity-bar { height: 10px; border-radius: 5px; background: rgba(255,255,255,0.1); overflow: hidden; }
     .maturity-fill { height: 100%; border-radius: 5px; transition: width 0.5s; }
     .cloud-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; margin: 2px; }
-    .rec-item { padding: 12px 16px; border-radius: 8px; background: rgba(0,200,83,0.05); border-left: 3px solid var(--accent-color); margin-bottom: 8px; }
+    .rec-item { padding: 12px 16px; border-radius: 8px; background: rgba(0,200,83,0.05); border-left: 3px solid var(--pt-interactive-accent); margin-bottom: 8px; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-diagram-3 me-2" style="color:var(--accent-color);"></i>Security Architecture</h2>
+            <h2 class="text-white"><i class="bi bi-diagram-3 me-2" style="color:var(--pt-interactive-accent);"></i>Security Architecture</h2>
             <p style="color:#8b949e;">Zero trust design, cloud security, and defense-in-depth strategies</p>
         </div>
     </div>
@@ -135,7 +135,7 @@ document.getElementById('zeroTrust').innerHTML = ZERO_TRUST.map(z => {
         <div class="d-flex justify-content-between mb-1"><strong style="color:#e6edf3;">${z.principle}</strong><span class="badge" style="background:${color};">${z.score}%</span></div>
         <small style="color:#8b949e;">${z.desc}</small>
         <div class="maturity-bar mt-2"><div class="maturity-fill" style="width:${z.score}%;background:${color};"></div></div>
-        <small style="color:#c9d1d9;display:block;margin-top:6px;"><i class="bi bi-info-circle me-1" style="color:var(--accent-color);"></i>${z.impl}</small>
+        <small style="color:#c9d1d9;display:block;margin-top:6px;"><i class="bi bi-info-circle me-1" style="color:var(--pt-interactive-accent);"></i>${z.impl}</small>
     </div>`;
 }).join('');
 

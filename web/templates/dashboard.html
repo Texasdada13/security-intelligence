@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
     .metric-card {
-        background: var(--card-bg);
+        background: var(--pt-bg-surface);
         border-radius: 12px;
         padding: 1.5rem;
-        border-left: 4px solid var(--accent-color);
+        border-left: 4px solid var(--pt-interactive-accent);
         transition: transform 0.2s, box-shadow 0.2s;
     }
     .metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0, 200, 83, 0.2); }
@@ -16,22 +17,22 @@
     .metric-value {
         font-size: 2.2rem;
         font-weight: 700;
-        background: var(--primary-gradient);
+        background: var(--pt-gradient-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
     }
     .metric-value.danger { background: linear-gradient(135deg, #f44336, #ff5722); -webkit-background-clip: text; background-clip: text; }
     .metric-label { color: #888; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
-    .chart-container { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; height: 350px; }
-    .org-selector { background: var(--card-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+    .chart-container { background: var(--pt-bg-surface); border-radius: 12px; padding: 1.5rem; height: 350px; }
+    .org-selector { background: var(--pt-bg-surface); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
     .quick-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.9); display: flex; align-items: center; justify-content: center; border-radius: 12px; z-index: 10; }
     .posture-score { font-size: 3rem; font-weight: 700; }
     .posture-score.good { color: #00c853; }
     .posture-score.warning { color: #ff9800; }
     .posture-score.critical { color: #f44336; }
-    .alerts-panel { background: var(--card-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+    .alerts-panel { background: var(--pt-bg-surface); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
     .alert-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 20px; }
     .alert-badge.critical { background: #f44336; color: white; }
     .alert-badge.warning { background: #ff9800; color: white; }
@@ -47,7 +48,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-shield-check me-2"></i>Security Dashboard</h2>
         <div class="quick-actions">

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Compliance Management - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Compliance{% endblock %}
 {% block extra_css %}
 <style>
-    .framework-card { border-radius: 12px; padding: 20px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); transition: transform 0.15s; cursor: pointer; }
+    .framework-card { border-radius: 12px; padding: 20px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); transition: transform 0.15s; cursor: pointer; }
     .framework-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,200,83,0.15); }
-    .framework-card.active { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(0,200,83,0.3); }
+    .framework-card.active { border-color: var(--pt-interactive-accent); box-shadow: 0 0 0 2px rgba(0,200,83,0.3); }
     .score-ring { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; }
     .control-row { padding: 10px 14px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid transparent; }
     .control-row.implemented { border-left-color: #4caf50; }
@@ -14,10 +15,9 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-clipboard-check me-2" style="color:var(--accent-color);"></i>Compliance Management</h2>
+            <h2 class="text-white"><i class="bi bi-clipboard-check me-2" style="color:var(--pt-interactive-accent);"></i>Compliance Management</h2>
             <p style="color:#8b949e;">Framework assessments, control mapping, and gap analysis</p>
         </div>
     </div>
@@ -138,7 +138,7 @@ new Chart(document.getElementById('trendChart'), {
 // Control details
 const controls = CONTROLS['SOC 2'];
 document.getElementById('controlsList').innerHTML = controls.map(domain => `
-    <h6 style="color:var(--accent-color);margin-top:16px;">${domain.domain}</h6>
+    <h6 style="color:var(--pt-interactive-accent);margin-top:16px;">${domain.domain}</h6>
     ${domain.controls.map((c,i) => {
         const s = domain.status[i];
         const icon = s==='implemented'?'bi-check-circle text-success':s==='partial'?'bi-exclamation-circle text-warning':'bi-x-circle text-danger';

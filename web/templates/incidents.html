@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Incident Response - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Incident Response{% endblock %}
 {% block extra_css %}
 <style>
-    .incident-card { padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); border-left: 4px solid; margin-bottom: 10px; transition: background 0.15s; cursor: pointer; }
+    .incident-card { padding: 16px; border-radius: 10px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); border-left: 4px solid; margin-bottom: 10px; transition: background 0.15s; cursor: pointer; }
     .incident-card:hover { background: rgba(0,200,83,0.05); }
     .incident-card.sev-critical { border-left-color: #f44336; }
     .incident-card.sev-high { border-left-color: #ff9800; }
@@ -13,16 +14,15 @@
     .playbook-step.active { background: rgba(30,136,229,0.1); border-left: 3px solid #1e88e5; }
     .playbook-step.pending { background: rgba(255,255,255,0.03); border-left: 3px solid #666; }
     .timeline-item { position: relative; padding-left: 30px; padding-bottom: 20px; border-left: 2px solid rgba(0,200,83,0.3); }
-    .timeline-item::before { content: ''; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color); }
+    .timeline-item::before { content: ''; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--pt-interactive-accent); }
     .timeline-item:last-child { border-left-color: transparent; }
     .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-lightning me-2" style="color:var(--accent-color);"></i>Incident Response</h2>
+            <h2 class="text-white"><i class="bi bi-lightning me-2" style="color:var(--pt-interactive-accent);"></i>Incident Response</h2>
             <p style="color:#8b949e;">Track incidents, execute playbooks, and conduct post-incident analysis</p>
         </div>
     </div>
@@ -132,7 +132,7 @@ document.getElementById('resolvedIncidents').innerHTML = RESOLVED_INCIDENTS.map(
             <span class="badge bg-success">Resolved</span>
         </div>
         <small style="color:#8b949e;">Resolved ${inc.resolved} &middot; MTTD: ${inc.ttd} &middot; MTTR: ${inc.ttr}</small>
-        <div style="color:#8b949e;font-size:0.85rem;margin-top:6px;"><i class="bi bi-lightbulb me-1" style="color:var(--accent-color);"></i>${inc.lessons}</div>
+        <div style="color:#8b949e;font-size:0.85rem;margin-top:6px;"><i class="bi bi-lightbulb me-1" style="color:var(--pt-interactive-accent);"></i>${inc.lessons}</div>
     </div>
 `).join('');
 
@@ -144,7 +144,7 @@ document.getElementById('playbook').innerHTML = PLAYBOOK_STEPS.map(s => {
 
 // Timeline
 document.getElementById('timeline').innerHTML = TIMELINE.map(t =>
-    `<div class="timeline-item"><small class="fw-bold" style="color:var(--accent-color);">${t.time}</small><br><span style="color:#c9d1d9;font-size:0.9rem;">${t.event}</span></div>`
+    `<div class="timeline-item"><small class="fw-bold" style="color:var(--pt-interactive-accent);">${t.time}</small><br><span style="color:#c9d1d9;font-size:0.9rem;">${t.event}</span></div>`
 ).join('');
 
 // Trend chart

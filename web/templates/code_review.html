@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Secure Code Review - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Code Review{% endblock %}
 {% block extra_css %}
 <style>
-    .lang-tab { padding: 10px 18px; border-radius: 8px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.15s; display: inline-block; margin: 4px; }
-    .lang-tab:hover { border-color: var(--accent-color); }
-    .lang-tab.active { border-color: var(--accent-color); background: rgba(0,200,83,0.1); }
+    .lang-tab { padding: 10px 18px; border-radius: 8px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); cursor: pointer; transition: all 0.15s; display: inline-block; margin: 4px; }
+    .lang-tab:hover { border-color: var(--pt-interactive-accent); }
+    .lang-tab.active { border-color: var(--pt-interactive-accent); background: rgba(0,200,83,0.1); }
     .vuln-row { padding: 12px 16px; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 6px; border-left: 3px solid; }
     .vuln-row.critical { border-left-color: #f44336; }
     .vuln-row.high { border-left-color: #ff9800; }
@@ -16,10 +17,9 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-code-slash me-2" style="color:var(--accent-color);"></i>Secure Code Review</h2>
+            <h2 class="text-white"><i class="bi bi-code-slash me-2" style="color:var(--pt-interactive-accent);"></i>Secure Code Review</h2>
             <p style="color:#8b949e;">Language-aware source code analysis with automated + manual review</p>
         </div>
         <button class="btn btn-outline-light btn-sm" onclick="exportReview()"><i class="bi bi-download me-1"></i>Export Review</button>

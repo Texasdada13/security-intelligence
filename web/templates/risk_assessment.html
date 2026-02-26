@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Risk Assessment - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Risk Assessment{% endblock %}
 {% block extra_css %}
 <style>
     .risk-matrix { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 3px; height: 350px; }
@@ -10,19 +11,18 @@
     .risk-medium { background: rgba(255,235,59,0.8); color: #333; }
     .risk-low { background: rgba(76,175,80,0.8); color: white; }
     .risk-negligible { background: rgba(76,175,80,0.4); color: #ccc; }
-    .risk-item { padding: 14px 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
+    .risk-item { padding: 14px 16px; border-radius: 10px; background: var(--pt-bg-surface); border: 1px solid rgba(0,200,83,0.15); margin-bottom: 10px; }
     .risk-score-badge { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
-    .mitigation-step { padding: 10px 14px; border-left: 3px solid var(--accent-color); background: rgba(0,200,83,0.05); border-radius: 0 8px 8px 0; margin-bottom: 8px; color: #c9d1d9; }
+    .mitigation-step { padding: 10px 14px; border-left: 3px solid var(--pt-interactive-accent); background: rgba(0,200,83,0.05); border-radius: 0 8px 8px 0; margin-bottom: 8px; color: #c9d1d9; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-exclamation-triangle me-2" style="color:var(--accent-color);"></i>Risk Assessment</h2>
+            <h2 class="text-white"><i class="bi bi-exclamation-triangle me-2" style="color:var(--pt-interactive-accent);"></i>Risk Assessment</h2>
             <p style="color:#8b949e;">Comprehensive security risk identification and prioritization</p>
         </div>
-        <select class="form-select" style="width:auto;background:var(--card-bg);color:#c9d1d9;border-color:rgba(0,200,83,0.3);" id="orgSelect" onchange="loadData()">
+        <select class="form-select" style="width:auto;background:var(--pt-bg-surface);color:#c9d1d9;border-color:rgba(0,200,83,0.3);" id="orgSelect" onchange="loadData()">
             <option value="">Demo Organization</option>
         </select>
     </div>
@@ -164,7 +164,7 @@ document.getElementById('topRisks').innerHTML = RISKS.map(r => {
         <div class="flex-fill">
             <div class="d-flex justify-content-between"><strong style="color:#e6edf3;">${r.title}</strong><span class="badge" style="background:${color};">${r.severity}</span></div>
             <small style="color:#8b949e;">${r.category} &middot; ${r.desc}</small>
-            <div class="mitigation-step mt-2"><small><i class="bi bi-shield-check me-1" style="color:var(--accent-color);"></i>${r.mitigation}</small></div>
+            <div class="mitigation-step mt-2"><small><i class="bi bi-shield-check me-1" style="color:var(--pt-interactive-accent);"></i>${r.mitigation}</small></div>
         </div>
     </div>`;
 }).join('');

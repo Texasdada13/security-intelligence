@@ -16,6 +16,8 @@ from src.patterns.compliance_engine import create_compliance_engine, ComplianceF
 from src.demo.data_generator import create_security_demo_generator
 from src.reports.report_generator import create_report_generator
 from src.alerts.alert_engine import create_alert_engine
+from patriot_ui import init_ui
+from patriot_ui.config import NavItem, NavSection
 
 
 def create_app():
@@ -26,6 +28,34 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+
+    init_ui(app,
+        product_name="Security Intelligence",
+        product_icon="bi-shield-lock",
+        show_org_selector=True,
+        nav_sections=[
+            NavSection("Overview", [
+                NavItem("Dashboard", "bi-speedometer2", "/dashboard"),
+                NavItem("AI CISO", "bi-chat-dots", "/chat"),
+            ]),
+            NavSection("Assess", [
+                NavItem("Risk Assessment", "bi-exclamation-triangle", "/risk-assessment"),
+                NavItem("Compliance", "bi-clipboard-check", "/compliance"),
+                NavItem("Vulnerabilities", "bi-bug", "/vulnerabilities"),
+                NavItem("Incidents", "bi-lightning", "/incidents"),
+                NavItem("Threat Intelligence", "bi-eye", "/threat-intelligence"),
+                NavItem("Security Architecture", "bi-diagram-3", "/security-architecture"),
+            ]),
+            NavSection("Secure", [
+                NavItem("ISO Compliance", "bi-award", "/iso-compliance"),
+                NavItem("Pen Testing", "bi-terminal", "/pentesting"),
+                NavItem("Code Review", "bi-code-slash", "/code-review"),
+                NavItem("Network Assessment", "bi-hdd-network", "/network-assessment"),
+                NavItem("DevSecOps", "bi-git", "/devsecops"),
+                NavItem("Audit Readiness", "bi-journal-check", "/audit-readiness"),
+            ]),
+        ]
+    )
 
     try:
         chat_engine = ChatEngine()

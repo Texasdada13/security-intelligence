@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Audit Readiness - {{ app_name|default('Security Intelligence') }}{% endblock %}
+{% block page_title %}Audit Readiness{% endblock %}
 {% block extra_css %}
 <style>
     .readiness-ring { width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 16px; }
@@ -17,10 +18,9 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="container py-4">
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h2 class="text-white"><i class="bi bi-clipboard2-check me-2" style="color:var(--accent-color);"></i>Audit Readiness</h2>
+            <h2 class="text-white"><i class="bi bi-clipboard2-check me-2" style="color:var(--pt-interactive-accent);"></i>Audit Readiness</h2>
             <p style="color:#8b949e;">Continuous audit preparation with evidence tracking and one-click export</p>
         </div>
         <div class="d-flex gap-2">
@@ -35,7 +35,7 @@
             <div class="row g-4 align-items-center">
                 <div class="col-md-3 text-center">
                     <div class="readiness-ring" style="background: conic-gradient(#00c853 0% 78%, rgba(255,255,255,0.1) 78% 100%);">
-                        <div style="width:100px;height:100px;border-radius:50%;background:var(--card-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                        <div style="width:100px;height:100px;border-radius:50%;background:var(--pt-bg-surface);display:flex;flex-direction:column;align-items:center;justify-content:center;">
                             <div style="font-size:2rem;font-weight:700;color:#00c853;">78%</div>
                             <small style="color:#8b949e;">Grade: B+</small>
                         </div>
@@ -58,7 +58,7 @@
     <!-- Framework Selector -->
     <div class="row g-3 mb-4">
         <div class="col-md-6">
-            <div class="card h-100" style="cursor:pointer;border-color:var(--accent-color);" onclick="selectAuditFramework('iso27001')">
+            <div class="card h-100" style="cursor:pointer;border-color:var(--pt-interactive-accent);" onclick="selectAuditFramework('iso27001')">
                 <div class="card-body text-center">
                     <h5 class="text-white">ISO 27001:2022</h5>
                     <p style="color:#8b949e;">93 Annex A Controls</p>
@@ -218,7 +218,7 @@ document.getElementById('evidenceSources').innerHTML = EVIDENCE_SOURCES.map(s =>
 document.getElementById('exportItems').innerHTML = EXPORT_ITEMS.map(e => `
     <div class="col-md-4">
         <div class="export-card text-center">
-            <i class="bi ${e.icon}" style="font-size:2rem;color:var(--accent-color);"></i>
+            <i class="bi ${e.icon}" style="font-size:2rem;color:var(--pt-interactive-accent);"></i>
             <div style="color:#e6edf3;font-weight:500;margin-top:8px;">${e.name}</div>
             <small style="color:#8b949e;">${e.size}</small>
             <div class="mt-1"><span class="badge ${e.status==='ready'?'bg-success':'bg-warning'}">${e.status}</span></div>
